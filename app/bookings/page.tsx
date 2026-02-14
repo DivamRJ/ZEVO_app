@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { PageShell } from "@/components/zevo/page-shell";
 
-export default function BookingsPage() {
+function BookingContent() {
   const params = useSearchParams();
   const [status, setStatus] = useState("Complete your details to continue booking.");
 
@@ -53,5 +54,13 @@ export default function BookingsPage() {
         </article>
       </section>
     </PageShell>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <BookingContent />
+    </Suspense>
   );
 }
