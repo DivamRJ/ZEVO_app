@@ -73,12 +73,17 @@ const sportsCard = {
   hover: { y: -8, scale: 1.02, rotate: -0.25, transition: { type: "spring", stiffness: 280, damping: 18 } }
 };
 
-const sportsHoverOverlay = {
+const sportsBorderGlow = {
   hidden: { opacity: 0, backgroundPosition: "0% 50%" },
   show: { opacity: 0, backgroundPosition: "0% 50%" },
   hover: {
-    opacity: 0.35,
-    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+    opacity: 1,
+    borderColor: ["rgba(56,189,248,0.9)", "rgba(168,85,247,0.9)", "rgba(56,189,248,0.9)"],
+    boxShadow: [
+      "0 0 0 rgba(56,189,248,0)",
+      "0 0 18px rgba(56,189,248,0.45), 0 0 24px rgba(168,85,247,0.35)",
+      "0 0 18px rgba(56,189,248,0.45), 0 0 24px rgba(168,85,247,0.35)"
+    ],
     transition: { duration: 1.8, repeat: Infinity, ease: "linear" }
   }
 };
@@ -201,11 +206,11 @@ export default function IntroPage() {
               variants={sportsCard}
               whileHover="hover"
               whileTap={{ scale: 0.98 }}
-              className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/75 p-4"
+              className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur-sm"
             >
               <motion.div
-                variants={sportsHoverOverlay}
-                className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(204,255,0,0.5),rgba(56,189,248,0.45),rgba(244,114,182,0.45),rgba(204,255,0,0.5))] bg-[length:220%_220%]"
+                variants={sportsBorderGlow}
+                className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent"
               />
 
               <motion.div
@@ -214,7 +219,7 @@ export default function IntroPage() {
                 className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-neon/20 blur-2xl"
               />
 
-              <div className={`relative rounded-xl bg-gradient-to-br p-4 ${item.tone}`}>
+              <div className="relative rounded-xl border border-zinc-700/70 bg-zinc-900/35 p-4">
                 <motion.p
                   animate={{ y: [0, -3, 0], rotate: [0, 3, -2, 0] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: index * 0.07 }}
