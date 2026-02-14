@@ -1,0 +1,234 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+
+import { PageShell } from "@/components/zevo/page-shell";
+import { SPORT_COLLAGE } from "@/lib/zevo-data";
+
+const facilities = [
+  {
+    title: "Discover Sports Arenas",
+    description: "Find nearby grounds and courts across every sport with fast filters.",
+    href: "/discover"
+  },
+  {
+    title: "Live Arena Map",
+    description: "Open map mode, compare options by area, and get instant directions.",
+    href: "/map"
+  },
+  {
+    title: "Player Profile",
+    description: "Set your interests and skill to unlock personalized recommendations.",
+    href: "/profile"
+  },
+  {
+    title: "Public Chat & Meetup",
+    description: "Post timings, discuss slots, and create meetup plans with venue + time.",
+    href: "/chat"
+  },
+  {
+    title: "Community Group",
+    description: "Connect with active players and coordinate games with your local circle.",
+    href: "/group"
+  },
+  {
+    title: "Help Center",
+    description: "Get support for bookings, profile setup, and feature guidance.",
+    href: "/about"
+  }
+];
+
+const sportContent: Record<string, string> = {
+  Football: "5v5 and full-pitch options with peak-hour booking visibility.",
+  Cricket: "Box cricket and net sessions for quick games or structured practice.",
+  Badminton: "Indoor court availability with easy doubles/singles planning.",
+  Volleyball: "Casual evening rallies and organized weekend group games.",
+  Tennis: "Court discovery for solo drills, coaching, or competitive sets.",
+  Basketball: "Urban courts and indoor arenas for pickup and squad runs.",
+  Pickleball: "Fast-growing community courts with beginner-friendly access.",
+  Futsal: "Small-sided fast gameplay venues for high-energy sessions.",
+  "Table Tennis": "Compact indoor setups ideal for quick practice blocks.",
+  Padel: "Social doubles-friendly courts built for modern club play.",
+  Hockey: "Dedicated hockey arenas for local teams and structured drills.",
+  Skating: "Open skate spots and arenas for freestyle and training sessions."
+};
+
+const fadeIn = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0 }
+};
+
+const sportsGrid = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06, delayChildren: 0.08 }
+  }
+};
+
+const sportsCard = {
+  hidden: { opacity: 0, y: 22, scale: 0.96 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35 } },
+  hover: { y: -8, scale: 1.02, rotate: -0.25, transition: { type: "spring", stiffness: 280, damping: 18 } }
+};
+
+const sportsHoverOverlay = {
+  hidden: { opacity: 0, backgroundPosition: "0% 50%" },
+  show: { opacity: 0, backgroundPosition: "0% 50%" },
+  hover: {
+    opacity: 0.35,
+    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+    transition: { duration: 1.8, repeat: Infinity, ease: "linear" }
+  }
+};
+
+export default function IntroPage() {
+  return (
+    <PageShell>
+      <motion.section
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={fadeIn}
+        transition={{ duration: 0.5 }}
+        className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/75 p-6 sm:p-10"
+      >
+        <div className="pointer-events-none absolute -left-8 top-0 h-44 w-44 rounded-full bg-neon/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-8 bottom-0 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl" />
+
+        <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="mb-3 inline-flex rounded-full border border-neon/40 bg-neon/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-neon">
+              ZEVO Intro
+            </p>
+            <h1 className="text-4xl font-black leading-tight sm:text-5xl xl:text-6xl">
+              Your full local sports ecosystem, in one place.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm text-zinc-300 sm:text-base">
+              ZEVO helps you discover where to play, who to play with, and when to lock your next session.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/profile" className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95">
+                Create Profile
+              </Link>
+              <Link href="/discover" className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500">
+                Start Exploring
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {SPORT_COLLAGE.slice(0, 8).map((item, index) => (
+              <motion.div
+                key={item.sport}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: index * 0.07 }}
+                className={`rounded-2xl border border-zinc-800 bg-gradient-to-br p-4 ${item.tone}`}
+              >
+                <p className="text-2xl">{item.icon}</p>
+                <p className="mt-3 text-sm font-semibold">{item.sport}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={fadeIn}
+        transition={{ duration: 0.45 }}
+        className="mb-10"
+      >
+        <h2 className="mb-4 text-2xl font-bold">What ZEVO Provides</h2>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {facilities.map((facility, index) => (
+            <motion.div
+              key={facility.title}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              whileHover={{ y: -6, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Link
+                href={facility.href}
+                className="block rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 transition hover:border-neon/70"
+              >
+                <h3 className="text-lg font-semibold">{facility.title}</h3>
+                <p className="mt-2 text-sm text-zinc-400">{facility.description}</p>
+                <motion.p
+                  className="mt-4 text-xs font-semibold text-neon"
+                  initial={{ x: 0 }}
+                  whileHover={{ x: 4 }}
+                >
+                  Open {facility.title}
+                </motion.p>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={fadeIn}
+        transition={{ duration: 0.45 }}
+        className="mb-6"
+      >
+        <h2 className="mb-4 text-2xl font-bold">Sports On ZEVO</h2>
+        <p className="mb-4 max-w-3xl text-sm text-zinc-400">
+          Every sport on ZEVO has its own community energy. Browse all available sports and jump into the one that matches your pace.
+        </p>
+
+        <motion.div
+          variants={sportsGrid}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.2 }}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        >
+          {SPORT_COLLAGE.map((item, index) => (
+            <motion.article
+              key={item.sport}
+              variants={sportsCard}
+              whileHover="hover"
+              whileTap={{ scale: 0.98 }}
+              className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/75 p-4"
+            >
+              <motion.div
+                variants={sportsHoverOverlay}
+                className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(204,255,0,0.5),rgba(56,189,248,0.45),rgba(244,114,182,0.45),rgba(204,255,0,0.5))] bg-[length:220%_220%]"
+              />
+
+              <motion.div
+                animate={{ opacity: [0.15, 0.35, 0.15], scale: [1, 1.08, 1] }}
+                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.08 }}
+                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-neon/20 blur-2xl"
+              />
+
+              <div className={`relative rounded-xl bg-gradient-to-br p-4 ${item.tone}`}>
+                <motion.p
+                  animate={{ y: [0, -3, 0], rotate: [0, 3, -2, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: index * 0.07 }}
+                  className="text-3xl"
+                >
+                  {item.icon}
+                </motion.p>
+                <h3 className="mt-3 text-base font-bold">{item.sport}</h3>
+              </div>
+              <p className="mt-3 text-xs text-zinc-400">{sportContent[item.sport] ?? "Explore venues and community activities for this sport."}</p>
+            </motion.article>
+          ))}
+        </motion.div>
+      </motion.section>
+    </PageShell>
+  );
+}

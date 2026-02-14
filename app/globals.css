@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --font-display: "Avenir Next", "Futura", "Century Gothic", "Trebuchet MS", sans-serif;
+  --font-body: "Sora", "Avenir Next", "Segoe UI", "Trebuchet MS", sans-serif;
+  --background: 240 10% 4%;
+  --foreground: 0 0% 98%;
+  --card: 240 6% 10%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 6% 20%;
+  --primary: 81 89% 80%;
+  --primary-foreground: 0 0% 6%;
+  --secondary: 262 83% 64%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 262 83% 64%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 81 89% 80%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  @apply bg-zinc-950 antialiased;
+  font-family: var(--font-body);
+  color: hsl(var(--foreground));
+  transition: background-color 200ms ease, color 200ms ease;
+  background-image:
+    radial-gradient(
+      circle at 10% 15%,
+      rgba(139, 92, 246, 0.15),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 95% 80%,
+      rgba(217, 249, 157, 0.12),
+      transparent 30%
+    );
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+html[data-theme="light"] body {
+  background-color: #f4f6fb;
+  color: #111827;
+  background-image:
+    radial-gradient(
+      circle at 10% 15%,
+      rgba(134, 239, 172, 0.25),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 95% 80%,
+      rgba(125, 211, 252, 0.2),
+      transparent 30%
+    );
+}
