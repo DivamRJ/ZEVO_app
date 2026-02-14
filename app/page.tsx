@@ -68,14 +68,14 @@ const sportsGrid = {
 };
 
 const sportsCard = {
-  hidden: { opacity: 0, y: 22, scale: 0.96 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35 } },
-  hover: { y: -8, scale: 1.02, rotate: -0.25, transition: { type: "spring", stiffness: 280, damping: 18 } }
+  hidden: { opacity: 0, y: 18, scale: 0.98 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.32 } },
+  hover: { y: -5, scale: 1.01, transition: { type: "spring", stiffness: 260, damping: 20 } }
 };
 
 const sportsBorderGlow = {
-  hidden: { opacity: 0, backgroundPosition: "0% 50%" },
-  show: { opacity: 0, backgroundPosition: "0% 50%" },
+  hidden: { opacity: 0 },
+  show: { opacity: 0 },
   hover: {
     opacity: 1,
     borderColor: ["rgba(56,189,248,0.9)", "rgba(168,85,247,0.9)", "rgba(56,189,248,0.9)"],
@@ -198,7 +198,7 @@ export default function IntroPage() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
-          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         >
           {SPORT_COLLAGE.map((item, index) => (
             <motion.article
@@ -206,30 +206,31 @@ export default function IntroPage() {
               variants={sportsCard}
               whileHover="hover"
               whileTap={{ scale: 0.98 }}
-              className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur-sm"
+              className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 backdrop-blur-sm"
             >
               <motion.div
                 variants={sportsBorderGlow}
                 className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent"
               />
 
-              <motion.div
-                animate={{ opacity: [0.15, 0.35, 0.15], scale: [1, 1.08, 1] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.08 }}
-                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-neon/20 blur-2xl"
-              />
-
-              <div className="relative rounded-xl border border-zinc-700/70 bg-zinc-900/35 p-4">
-                <motion.p
-                  animate={{ y: [0, -3, 0], rotate: [0, 3, -2, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: index * 0.07 }}
-                  className="text-3xl"
-                >
+              <div className="relative flex items-start justify-between">
+                <div className="rounded-xl border border-zinc-700/80 bg-zinc-900/55 px-3 py-2 text-2xl leading-none text-zinc-100">
                   {item.icon}
-                </motion.p>
-                <h3 className="mt-3 text-base font-bold">{item.sport}</h3>
+                </div>
+                <span className="rounded-full border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                  ZEVO Sport
+                </span>
               </div>
-              <p className="mt-3 text-xs text-zinc-400">{sportContent[item.sport] ?? "Explore venues and community activities for this sport."}</p>
+
+              <h3 className="mt-4 text-lg font-semibold tracking-tight text-zinc-100">{item.sport}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                {sportContent[item.sport] ?? "Explore venues and community activities for this sport."}
+              </p>
+
+              <div className="mt-4 h-px w-full bg-zinc-800" />
+              <p className="mt-3 text-xs font-medium text-zinc-500 transition group-hover:text-zinc-300">
+                Tap Discover to find available arenas and slots.
+              </p>
             </motion.article>
           ))}
         </motion.div>
