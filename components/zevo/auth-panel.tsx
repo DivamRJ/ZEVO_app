@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/lib/supabase/client";
@@ -24,6 +25,13 @@ export function AuthPanel({
   const [status, setStatus] = useState("Create an account or log in to continue.");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    router.push("/chat");
+    router.refresh();
+  }, [loading, user, router]);
+
   const onSignUp = async () => {
     const cleanEmail = email.trim();
     if (!cleanEmail || !password) {
@@ -31,37 +39,59 @@ export function AuthPanel({
       return;
     }
 
-    setSubmitting(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: cleanEmail,
-      password
-    });
-
-    if (error) {
-      console.log("Supabase signup error:", error.message, error);
-      setStatus(error.message);
-      setSubmitting(false);
-      return;
-    }
-
-    if (data.user) {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+    try {
+      setSubmitting(true);
+      const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password
       });
 
-      if (signInError) {
-        console.log("Supabase auto-login after signup error:", signInError.message, signInError);
-        setStatus(signInError.message);
+      if (error) {
+        console.log("Supabase signup error:", error.message, error);
+        if (error.message.toLowerCase().includes("email rate limit exceeded")) {
+          setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+          setSubmitting(false);
+          return;
+        }
+        setStatus(error.message);
         setSubmitting(false);
         return;
       }
-    }
 
-    setStatus("Welcome to Zevo!");
-    setSubmitting(false);
-    router.push("/chat");
-    router.refresh();
+      if (data.user) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+
+        if (signInError) {
+          console.log("Supabase auto-login after signup error:", signInError.message, signInError);
+          if (signInError.message.toLowerCase().includes("email rate limit exceeded")) {
+            setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+            setSubmitting(false);
+            return;
+          }
+          setStatus(signInError.message);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      setStatus("Welcome to Zevo!");
+      setSubmitting(false);
+      router.push("/chat");
+      router.refresh();
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
+      console.log("Supabase signup catch error:", message, caughtError);
+      if (message.toLowerCase().includes("email rate limit exceeded")) {
+        setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+        setSubmitting(false);
+        return;
+      }
+      setStatus(message);
+      setSubmitting(false);
+    }
   };
 
   const onLogIn = async () => {
