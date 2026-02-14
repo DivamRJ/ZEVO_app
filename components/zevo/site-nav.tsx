@@ -12,6 +12,7 @@ const baseLinks = [
   { href: "/discover", label: "Discover" },
   { href: "/bookings", label: "Bookings" },
   { href: "/chat", label: "Public Chat" },
+  { href: "/auth", label: "Auth" },
   { href: "/map", label: "Map" },
   { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" }

@@ -133,3 +133,52 @@ create policy "Users can update their participation"
 on public.participants for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+-- Arena chat rooms and messages for authenticated users
+create table if not exists public.arena_chat_rooms (
+  id uuid primary key default gen_random_uuid(),
+  arena_id text not null,
+  arena_name text not null,
+  sport text not null,
+  topic text not null,
+  created_by_user_id uuid not null references auth.users(id) on delete cascade,
+  created_by_email text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references public.arena_chat_rooms(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  user_email text not null,
+  sender_name text not null,
+  text text not null check (char_length(text) > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_arena_chat_rooms_created_at on public.arena_chat_rooms(created_at desc);
+create index if not exists idx_messages_room_created on public.messages(room_id, created_at);
+create index if not exists idx_messages_user_id on public.messages(user_id);
+
+alter table public.arena_chat_rooms enable row level security;
+alter table public.messages enable row level security;
+
+create policy "Authenticated users can view chat rooms"
+on public.arena_chat_rooms for select
+to authenticated
+using (true);
+
+create policy "Authenticated users can create chat rooms"
+on public.arena_chat_rooms for insert
+to authenticated
+with check (auth.uid() = created_by_user_id);
+
+create policy "Authenticated users can view messages"
+on public.messages for select
+to authenticated
+using (true);
+
+create policy "Authenticated users can create messages"
+on public.messages for insert
+to authenticated
+with check (auth.uid() = user_id);
