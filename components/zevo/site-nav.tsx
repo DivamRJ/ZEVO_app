@@ -11,6 +11,7 @@ const baseLinks = [
   { href: "/", label: "Intro" },
   { href: "/discover", label: "Discover" },
   { href: "/bookings", label: "Bookings" },
+  { href: "/chat", label: "Public Chat" },
   { href: "/map", label: "Map" },
   { href: "/profile", label: "Profile" },
   { href: "/about", label: "About" }
@@ -32,9 +33,7 @@ export function SiteNav() {
     };
   }, []);
 
-  const links = hasProfile
-    ? [...baseLinks, { href: "/chat", label: "Public Chat" }, { href: "/group", label: "Group" }]
-    : baseLinks;
+  const links = hasProfile ? [...baseLinks, { href: "/group", label: "Group" }] : baseLinks;
 
   return (
     <header className="sticky top-3 z-50 mb-8 rounded-2xl border border-zinc-800/70 bg-zinc-900/80 px-4 py-3 backdrop-blur sm:px-6">
