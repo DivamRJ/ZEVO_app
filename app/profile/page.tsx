@@ -1,16 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AuthPanel } from "@/components/zevo/auth-panel";
 import { PageShell } from "@/components/zevo/page-shell";
-import { useUser } from "@/hooks/use-user";
 import { SPORTS, type Sport } from "@/lib/zevo-data";
 import { getProfile, saveProfile, type StoredProfile } from "@/lib/zevo-storage";
 
 export default function ProfilePage() {
-  const { user, loading, isAuthenticated } = useUser();
-
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [skillLevel, setSkillLevel] = useState<StoredProfile["skillLevel"]>("Beginner");
@@ -57,23 +54,20 @@ export default function ProfilePage() {
   return (
     <PageShell>
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
-        <h1 className="text-3xl font-black">Authentication</h1>
-        <p className="mt-2 text-sm text-zinc-400">Use Zevo auth to log in and access protected features.</p>
-        <p className="mt-3 text-xs text-zinc-300">
-          {loading
-            ? "Checking session..."
-            : isAuthenticated
-              ? `Logged in as ${user?.email ?? "authenticated user"}`
-              : "No active session. Please log in."}
-        </p>
-        <Link href="/auth" className="mt-4 inline-block rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900">
-          Open Auth Page
-        </Link>
+        <h1 className="text-3xl font-black">Profile</h1>
+        <p className="mt-2 text-sm text-zinc-400">Sign up or log in, then set your player identity and interests.</p>
+      </section>
+
+      <section className="mb-6">
+        <AuthPanel
+          title="Sign Up / Login"
+          subtitle="Account access now lives inside Profile. No separate auth page is needed."
+        />
       </section>
 
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
-        <h1 className="text-3xl font-black">Create Your Profile</h1>
-        <p className="mt-2 text-sm text-zinc-400">Set your player identity and interests for personalized discovery.</p>
+        <h2 className="text-2xl font-black">Create Your Player Profile</h2>
+        <p className="mt-2 text-sm text-zinc-400">Set your interests and level for personalized arena discovery and group matching.</p>
         <p className="mt-3 text-xs text-zinc-300">{status}</p>
       </section>
 

@@ -177,8 +177,8 @@ export default function ChatPage() {
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
           <h1 className="text-3xl font-black">Public Arena Chat</h1>
           <p className="mt-2 text-sm text-zinc-400">Please login to join the conversation.</p>
-          <Link href="/auth" className="mt-4 inline-block rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900">
-            Go To Auth
+          <Link href="/profile" className="mt-4 inline-block rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900">
+            Go To Profile Login
           </Link>
         </section>
       </PageShell>

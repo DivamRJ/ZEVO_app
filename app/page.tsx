@@ -4,7 +4,9 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 
+import { AuthPanel } from "@/components/zevo/auth-panel";
 import { PageShell } from "@/components/zevo/page-shell";
+import { useUser } from "@/hooks/use-user";
 import { SPORT_COLLAGE } from "@/lib/zevo-data";
 
 const facilities = [
@@ -90,6 +92,7 @@ const sportsBorderGlow = {
 };
 
 export default function IntroPage() {
+  const { loading, isAuthenticated } = useUser();
   const router = useRouter();
   const openSportDetails = (sport: string) => {
     router.push(`/discover?sport=${encodeURIComponent(sport)}`);
@@ -149,6 +152,22 @@ export default function IntroPage() {
           </div>
         </div>
       </motion.section>
+
+      {!loading && !isAuthenticated ? (
+        <motion.section
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={fadeIn}
+          transition={{ duration: 0.45 }}
+          className="mb-10"
+        >
+          <AuthPanel
+            title="New To ZEVO? Start Here"
+            subtitle="Create your account or log in from the homepage before you explore arenas, bookings, and chat."
+          />
+        </motion.section>
+      ) : null}
 
       <motion.section
         initial="hidden"
