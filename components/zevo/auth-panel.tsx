@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/lib/supabase/client";
@@ -16,6 +17,7 @@ export function AuthPanel({
   subtitle = "Use your email and password to access ZEVO chat and protected features.",
   className = ""
 }: AuthPanelProps) {
+  const router = useRouter();
   const { user, loading } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,14 +46,15 @@ export function AuthPanel({
   };
 
   const onLogIn = async () => {
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
       setStatus("Email and password are required.");
       return;
     }
 
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: cleanEmail,
       password
     });
     setSubmitting(false);
@@ -61,7 +64,8 @@ export function AuthPanel({
       return;
     }
 
-    setStatus(`Logged in as ${email.trim()}`);
+    router.push("/chat");
+    router.refresh();
   };
 
   const onLogOut = async () => {
