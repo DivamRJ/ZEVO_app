@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,6 +20,14 @@ function getArenaDescription(params: {
 }
 
 export default function DiscoverPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DiscoverContent />
+    </Suspense>
+  );
+}
+
+function DiscoverContent() {
   const searchParams = useSearchParams();
   const [activeFilter, setActiveFilter] = useState<SportFilter>("All");
   const [expandedArenaId, setExpandedArenaId] = useState<string | null>(null);
