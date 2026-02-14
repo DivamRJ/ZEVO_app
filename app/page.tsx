@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 import { PageShell } from "@/components/zevo/page-shell";
 import { SPORT_COLLAGE } from "@/lib/zevo-data";
@@ -89,6 +90,8 @@ const sportsBorderGlow = {
 };
 
 export default function IntroPage() {
+  const router = useRouter();
+
   return (
     <PageShell>
       <motion.section
@@ -204,10 +207,13 @@ export default function IntroPage() {
             <motion.article
               key={item.sport}
               variants={sportsCard}
+              onClick={() => router.push(`/discover?sport=${encodeURIComponent(item.sport)}`)}
               whileHover="hover"
               whileTap={{ scale: 0.98 }}
-              className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 backdrop-blur-sm"
+              className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 backdrop-blur-sm"
             >
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-25 transition-opacity duration-300 group-hover:opacity-45 ${item.tone}`} />
+
               <motion.div
                 variants={sportsBorderGlow}
                 className="pointer-events-none absolute inset-0 rounded-2xl border border-transparent"
@@ -228,9 +234,18 @@ export default function IntroPage() {
               </p>
 
               <div className="mt-4 h-px w-full bg-zinc-800" />
-              <p className="mt-3 text-xs font-medium text-zinc-500 transition group-hover:text-zinc-300">
-                Tap Discover to find available arenas and slots.
-              </p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs font-medium text-zinc-500 transition group-hover:text-zinc-300">
+                  Tap card to view details
+                </p>
+                <Link
+                  href={`/bookings?sport=${encodeURIComponent(item.sport)}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="rounded-lg bg-neon px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-900 hover:brightness-95"
+                >
+                  Book
+                </Link>
+              </div>
             </motion.article>
           ))}
         </motion.div>

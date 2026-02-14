@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { PageShell } from "@/components/zevo/page-shell";
 import { FILTERS, TURFS, type SportFilter } from "@/lib/zevo-data";
@@ -18,8 +19,18 @@ function getArenaDescription(params: {
 }
 
 export default function DiscoverPage() {
+  const searchParams = useSearchParams();
   const [activeFilter, setActiveFilter] = useState<SportFilter>("All");
   const [expandedArenaId, setExpandedArenaId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sportFromQuery = searchParams.get("sport");
+    if (!sportFromQuery) return;
+    const isKnownFilter = FILTERS.includes(sportFromQuery as SportFilter);
+    if (isKnownFilter) {
+      setActiveFilter(sportFromQuery as SportFilter);
+    }
+  }, [searchParams]);
 
   const filteredTurfs = useMemo(() => {
     if (activeFilter === "All") return TURFS;
