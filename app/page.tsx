@@ -91,6 +91,12 @@ const sportsBorderGlow = {
 
 export default function IntroPage() {
   const router = useRouter();
+  const openSportDetails = (sport: string) => {
+    router.push(`/discover?sport=${encodeURIComponent(sport)}`);
+  };
+  const openSportBooking = (sport: string) => {
+    router.push(`/bookings?sport=${encodeURIComponent(sport)}`);
+  };
 
   return (
     <PageShell>
@@ -207,7 +213,7 @@ export default function IntroPage() {
             <motion.article
               key={item.sport}
               variants={sportsCard}
-              onClick={() => router.push(`/discover?sport=${encodeURIComponent(item.sport)}`)}
+              onClick={() => openSportDetails(item.sport)}
               whileHover="hover"
               whileTap={{ scale: 0.98 }}
               className="group relative cursor-pointer overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 backdrop-blur-sm"
@@ -238,13 +244,16 @@ export default function IntroPage() {
                 <p className="text-xs font-medium text-zinc-500 transition group-hover:text-zinc-300">
                   Tap card to view details
                 </p>
-                <Link
-                  href={`/bookings?sport=${encodeURIComponent(item.sport)}`}
-                  onClick={(event) => event.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openSportBooking(item.sport);
+                  }}
                   className="rounded-lg bg-neon px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-900 hover:brightness-95"
                 >
                   Book
-                </Link>
+                </button>
               </div>
             </motion.article>
           ))}

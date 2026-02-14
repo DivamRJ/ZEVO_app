@@ -5,8 +5,15 @@ import { useEffect, useState } from "react";
 import { PageShell } from "@/components/zevo/page-shell";
 import { SPORTS, type Sport } from "@/lib/zevo-data";
 import { getProfile, saveProfile, type StoredProfile } from "@/lib/zevo-storage";
+import { supabase } from "@/lib/supabase/client";
 
 export default function ProfilePage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authStatus, setAuthStatus] = useState("Sign up or log in to sync your ZEVO account.");
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authUserEmail, setAuthUserEmail] = useState<string | null>(null);
+
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [skillLevel, setSkillLevel] = useState<StoredProfile["skillLevel"]>("Beginner");
@@ -22,6 +29,39 @@ export default function ProfilePage() {
     setCity(existing.city);
     setSkillLevel(existing.skillLevel);
     setInterests(existing.interests);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (!active) return;
+      if (error) {
+        setAuthStatus(error.message);
+        return;
+      }
+      setAuthUserEmail(data.session?.user.email ?? null);
+      if (data.session?.user.email) {
+        setAuthStatus(`Logged in as ${data.session.user.email}`);
+      }
+    };
+
+    loadSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUserEmail(session?.user.email ?? null);
+      if (session?.user.email) {
+        setAuthStatus(`Logged in as ${session.user.email}`);
+      } else {
+        setAuthStatus("Signed out. Log in to continue.");
+      }
+    });
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const toggleInterest = (sport: Sport) => {
@@ -50,8 +90,107 @@ export default function ProfilePage() {
     setStatus("Profile saved. Public Chat and Group are now available in navbar.");
   };
 
+  const handleSignUp = async () => {
+    if (!email.trim() || !password.trim()) {
+      setAuthStatus("Email and password are required for signup.");
+      return;
+    }
+    setIsAuthLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password
+    });
+    setIsAuthLoading(false);
+    if (error) {
+      setAuthStatus(error.message);
+      return;
+    }
+    setAuthStatus("Signup successful. Check your email for verification if enabled.");
+  };
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setAuthStatus("Email and password are required for login.");
+      return;
+    }
+    setIsAuthLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password
+    });
+    setIsAuthLoading(false);
+    if (error) {
+      setAuthStatus(error.message);
+      return;
+    }
+    setAuthStatus(`Logged in as ${email.trim()}`);
+  };
+
+  const handleLogout = async () => {
+    setIsAuthLoading(true);
+    const { error } = await supabase.auth.signOut();
+    setIsAuthLoading(false);
+    if (error) {
+      setAuthStatus(error.message);
+      return;
+    }
+    setAuthStatus("Signed out successfully.");
+  };
+
   return (
     <PageShell>
+      <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
+        <h1 className="text-3xl font-black">Login / Signup</h1>
+        <p className="mt-2 text-sm text-zinc-400">Access your ZEVO account with email and password.</p>
+        <p className="mt-3 text-xs text-zinc-300">{authStatus}</p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            type="email"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
+          />
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            type="password"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
+          />
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleLogin}
+            disabled={isAuthLoading}
+            className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 disabled:opacity-60"
+          >
+            Log In
+          </button>
+          <button
+            type="button"
+            onClick={handleSignUp}
+            disabled={isAuthLoading}
+            className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500 disabled:opacity-60"
+          >
+            Sign Up
+          </button>
+          {authUserEmail ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isAuthLoading}
+              className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500 disabled:opacity-60"
+            >
+              Log Out
+            </button>
+          ) : null}
+        </div>
+      </section>
+
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
         <h1 className="text-3xl font-black">Create Your Profile</h1>
         <p className="mt-2 text-sm text-zinc-400">Set your player identity and interests for personalized discovery.</p>
