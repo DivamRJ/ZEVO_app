@@ -41,6 +41,7 @@ export function AuthPanel({
 
     try {
       setSubmitting(true);
+      console.log("Attempting signup for:", cleanEmail);
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
         password
