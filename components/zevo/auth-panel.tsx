@@ -25,24 +25,43 @@ export function AuthPanel({
   const [submitting, setSubmitting] = useState(false);
 
   const onSignUp = async () => {
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
       setStatus("Email and password are required.");
       return;
     }
 
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
       password
     });
-    setSubmitting(false);
 
     if (error) {
+      console.log("Supabase signup error:", error.message, error);
       setStatus(error.message);
+      setSubmitting(false);
       return;
     }
 
-    setStatus("Signup successful. Check your inbox if email verification is enabled.");
+    if (data.user) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password
+      });
+
+      if (signInError) {
+        console.log("Supabase auto-login after signup error:", signInError.message, signInError);
+        setStatus(signInError.message);
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    setStatus("Welcome to Zevo!");
+    setSubmitting(false);
+    router.push("/chat");
+    router.refresh();
   };
 
   const onLogIn = async () => {
