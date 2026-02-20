@@ -36,6 +36,19 @@ export default function GroupPage() {
         <p className="mt-2 text-sm text-zinc-400">See active members and coordinate upcoming local games.</p>
       </section>
 
+      <section className="mb-4 grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "Community Pulse", value: `${members.length} players` },
+          { label: "Open Topics", value: "3 active threads" },
+          { label: "Next Meetup", value: "Saturday 6:00 AM" }
+        ].map((item) => (
+          <article key={item.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <p className="text-xs uppercase tracking-wide text-zinc-400">{item.label}</p>
+            <p className="mt-2 text-sm font-semibold text-zinc-100">{item.value}</p>
+          </article>
+        ))}
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
           <h2 className="font-semibold">Active Members</h2>

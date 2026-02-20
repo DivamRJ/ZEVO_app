@@ -31,6 +31,7 @@ export default function MapPage() {
       return a.distanceKm - b.distanceKm;
     });
   }, [userCoords]);
+  const nearestArena = sortedTurfs.find((turf) => turf.distanceKm != null);
 
   const requestUserLocation = () => {
     if (!navigator.geolocation) {
@@ -67,6 +68,24 @@ export default function MapPage() {
         >
           Get Directions
         </button>
+      </section>
+
+      <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+        <h2 className="text-sm font-semibold">Proximity Intel</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Nearest Arena</p>
+            <p className="mt-1 text-sm text-zinc-100">{nearestArena?.name ?? "Enable location"}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Range</p>
+            <p className="mt-1 text-sm text-zinc-100">{nearestArena?.distanceKm != null ? `${nearestArena.distanceKm.toFixed(1)} km` : "--"}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Map Focus</p>
+            <p className="mt-1 text-sm text-zinc-100">{selectedTurf.name}</p>
+          </div>
+        </div>
       </section>
 
       <section className="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70">

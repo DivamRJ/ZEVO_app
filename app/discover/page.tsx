@@ -45,6 +45,7 @@ function DiscoverContent() {
     if (activeFilter === "All") return TURFS;
     return TURFS.filter((turf) => turf.sport === activeFilter);
   }, [activeFilter]);
+  const featuredTurfs = useMemo(() => TURFS.slice(0, 4), []);
 
   return (
     <PageShell>
@@ -71,6 +72,19 @@ function DiscoverContent() {
             </button>
           );
         })}
+      </section>
+
+      <section className="mb-6 overflow-x-auto">
+        <div className="flex min-w-max gap-3">
+          {featuredTurfs.map((turf) => (
+            <article key={turf.id} className="w-64 rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 p-4">
+              <p className="text-xs uppercase tracking-wide text-cyan-300">Trending Arena</p>
+              <h3 className="mt-2 text-sm font-semibold text-zinc-100">{turf.name}</h3>
+              <p className="mt-1 text-xs text-zinc-400">{turf.location}</p>
+              <p className="mt-3 text-xs text-zinc-300">{turf.format ?? turf.sport}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

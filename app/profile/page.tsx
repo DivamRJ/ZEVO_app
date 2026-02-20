@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { AuthPanel } from "@/components/zevo/auth-panel";
+import { Progress } from "@/components/ui/progress";
 import { PageShell } from "@/components/zevo/page-shell";
 import { SPORTS, type Sport } from "@/lib/zevo-data";
 import { getProfile, saveProfile, type StoredProfile } from "@/lib/zevo-storage";
@@ -14,6 +15,13 @@ export default function ProfilePage() {
   const [interests, setInterests] = useState<Sport[]>([]);
   const [saved, setSaved] = useState<StoredProfile | null>(null);
   const [status, setStatus] = useState("Create your ZEVO profile to unlock chat and group features.");
+  const profileCompletion = Math.min(
+    100,
+    (name.trim() ? 30 : 0) +
+      (city.trim() ? 20 : 0) +
+      (skillLevel ? 20 : 0) +
+      (interests.length > 0 ? 30 : 0)
+  );
 
   useEffect(() => {
     const existing = getProfile();
@@ -56,6 +64,18 @@ export default function ProfilePage() {
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
         <h1 className="text-3xl font-black">Profile</h1>
         <p className="mt-2 text-sm text-zinc-400">Sign up or log in, then set your player identity and interests.</p>
+        <div className="mt-4 rounded-2xl border border-zinc-700 bg-zinc-800/70 p-4">
+          <div className="mb-2 flex items-center justify-between text-xs text-zinc-300">
+            <span>Profile Completion</span>
+            <span>{profileCompletion}%</span>
+          </div>
+          <Progress value={profileCompletion} indicatorClassName="bg-gradient-to-r from-cyan-400 to-violet-400" />
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+            <span className="rounded-full border border-zinc-600 px-2 py-1 text-zinc-300">Identity</span>
+            <span className="rounded-full border border-zinc-600 px-2 py-1 text-zinc-300">Skill Tag</span>
+            <span className="rounded-full border border-zinc-600 px-2 py-1 text-zinc-300">Interest Graph</span>
+          </div>
+        </div>
       </section>
 
       <section className="mb-6">

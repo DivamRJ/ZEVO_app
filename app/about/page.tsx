@@ -31,6 +31,19 @@ export default function AboutPage() {
         </p>
       </section>
 
+      <section className="mb-6 grid gap-3 md:grid-cols-3">
+        {[
+          { q: "How fast are bookings confirmed?", a: "Most confirmations are shared within a few minutes." },
+          { q: "Can I switch sports anytime?", a: "Yes, edit your profile interests whenever you want." },
+          { q: "Is chat public?", a: "Rooms are visible to signed-in users with shared arena interests." }
+        ].map((item) => (
+          <article key={item.q} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <p className="text-sm font-semibold text-zinc-100">{item.q}</p>
+            <p className="mt-2 text-xs text-zinc-400">{item.a}</p>
+          </article>
+        ))}
+      </section>
+
       <section className="grid gap-6 lg:grid-cols-2">
         <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
           <h2 className="text-lg font-semibold">Support</h2>

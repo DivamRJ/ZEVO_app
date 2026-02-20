@@ -100,6 +100,19 @@ function BookingContent() {
         </div>
       </section>
 
+      <section className="mb-4 grid gap-3 md:grid-cols-3">
+        {[
+          { label: "Step 1", detail: "Choose your arena and slot preference." },
+          { label: "Step 2", detail: "Confirm contact email for booking updates." },
+          { label: "Step 3", detail: "Receive booking confirmation by email." }
+        ].map((step) => (
+          <article key={step.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neon">{step.label}</p>
+            <p className="mt-2 text-sm text-zinc-300">{step.detail}</p>
+          </article>
+        ))}
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
           <h2 className="text-lg font-semibold">Selected Arena</h2>

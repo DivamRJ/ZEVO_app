@@ -281,6 +281,21 @@ export default function ChatPage() {
         <p className="mt-3 text-xs text-zinc-300">{chatStatus}</p>
       </section>
 
+      <section className="mb-4 grid gap-3 sm:grid-cols-3">
+        <article className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Live Rooms</p>
+          <p className="mt-2 text-lg font-semibold text-zinc-100">{rooms.length}</p>
+        </article>
+        <article className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Selected Room Messages</p>
+          <p className="mt-2 text-lg font-semibold text-zinc-100">{messages.length}</p>
+        </article>
+        <article className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Interest Filter</p>
+          <p className="mt-2 text-lg font-semibold text-zinc-100">{showInterestedOnly ? "On" : "Off"}</p>
+        </article>
+      </section>
+
       <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
         <h2 className="text-sm font-semibold">Create Arena Chat Room</h2>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
