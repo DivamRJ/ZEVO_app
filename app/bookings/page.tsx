@@ -10,6 +10,8 @@ import { TURFS } from "@/lib/zevo-data";
 function BookingContent() {
   const params = useSearchParams();
   const [status, setStatus] = useState("Complete your details to continue booking.");
+  const [bookerEmail, setBookerEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [selectedArenaId, setSelectedArenaId] = useState<string>(() => {
     const arenaFromQuery = params.get("arena");
     if (!arenaFromQuery) return TURFS[0].id;
@@ -31,8 +33,40 @@ function BookingContent() {
     };
   }, [selectedArena]);
 
-  const confirmBooking = () => {
-    setStatus("Booking request submitted. Arena host will confirm your slot shortly.");
+  const confirmBooking = async () => {
+    const cleanEmail = bookerEmail.trim();
+    if (!cleanEmail) {
+      setStatus("Please enter your email before confirming booking.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setStatus("Submitting booking...");
+
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookerEmail: cleanEmail,
+          booking: bookingInfo
+        })
+      });
+
+      const result = (await response.json()) as { success?: boolean; message?: string; error?: string };
+      if (!response.ok) {
+        setStatus(result.error ?? "Booking failed. Please try again.");
+        setSubmitting(false);
+        return;
+      }
+
+      setStatus(result.message ?? "Booking request submitted and emailed.");
+      setSubmitting(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Booking failed. Please try again.";
+      setStatus(message);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -54,6 +88,16 @@ function BookingContent() {
             ))}
           </select>
         </div>
+        <div className="mt-4">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Your Email</label>
+          <input
+            value={bookerEmail}
+            onChange={(event) => setBookerEmail(event.target.value)}
+            placeholder="you@example.com"
+            type="email"
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
+          />
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -73,9 +117,10 @@ function BookingContent() {
           <button
             type="button"
             onClick={confirmBooking}
-            className="mt-4 rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95"
+            disabled={submitting}
+            className="mt-4 rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95 disabled:opacity-60"
           >
-            Confirm Booking
+            {submitting ? "Sending..." : "Confirm Booking"}
           </button>
         </article>
       </section>

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 import { useUser } from "@/hooks/use-user";
 import { supabase } from "@/lib/supabase/client";
@@ -24,15 +23,18 @@ export function AuthPanel({
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("Create an account or log in to continue.");
   const [submitting, setSubmitting] = useState(false);
+  const [redirectOnSession, setRedirectOnSession] = useState(false);
 
   useEffect(() => {
     if (loading) return;
     if (!user) return;
+    if (!redirectOnSession) return;
     router.push("/chat");
     router.refresh();
-  }, [loading, user, router]);
+  }, [loading, redirectOnSession, user, router]);
 
   const onSignUp = async () => {
+    if (submitting) return;
     const cleanEmail = email.trim();
     if (!cleanEmail || !password) {
       setStatus("Email and password are required.");
@@ -41,6 +43,7 @@ export function AuthPanel({
 
     try {
       setSubmitting(true);
+      setRedirectOnSession(true);
       console.log("Attempting signup for:", cleanEmail);
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -51,10 +54,12 @@ export function AuthPanel({
         console.log("Supabase signup error:", error.message, error);
         if (error.message.toLowerCase().includes("email rate limit exceeded")) {
           setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+          setRedirectOnSession(false);
           setSubmitting(false);
           return;
         }
         setStatus(error.message);
+        setRedirectOnSession(false);
         setSubmitting(false);
         return;
       }
@@ -69,10 +74,12 @@ export function AuthPanel({
           console.log("Supabase auto-login after signup error:", signInError.message, signInError);
           if (signInError.message.toLowerCase().includes("email rate limit exceeded")) {
             setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+            setRedirectOnSession(false);
             setSubmitting(false);
             return;
           }
           setStatus(signInError.message);
+          setRedirectOnSession(false);
           setSubmitting(false);
           return;
         }
@@ -87,15 +94,18 @@ export function AuthPanel({
       console.log("Supabase signup catch error:", message, caughtError);
       if (message.toLowerCase().includes("email rate limit exceeded")) {
         setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
+        setRedirectOnSession(false);
         setSubmitting(false);
         return;
       }
       setStatus(message);
+      setRedirectOnSession(false);
       setSubmitting(false);
     }
   };
 
   const onLogIn = async () => {
+    if (submitting) return;
     const cleanEmail = email.trim();
     if (!cleanEmail || !password) {
       setStatus("Email and password are required.");
@@ -103,6 +113,7 @@ export function AuthPanel({
     }
 
     setSubmitting(true);
+    setRedirectOnSession(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password
@@ -111,6 +122,7 @@ export function AuthPanel({
 
     if (error) {
       setStatus(error.message);
+      setRedirectOnSession(false);
       return;
     }
 
@@ -119,7 +131,9 @@ export function AuthPanel({
   };
 
   const onLogOut = async () => {
+    if (submitting) return;
     setSubmitting(true);
+    setRedirectOnSession(false);
     const { error } = await supabase.auth.signOut();
     setSubmitting(false);
 

@@ -1,0 +1,13 @@
+{
+  "/api/bookings/route": "/api/bookings",
+  "/icon.svg/route": "/icon.svg",
+  "/_not-found/page": "/_not-found",
+  "/about/page": "/about",
+  "/bookings/page": "/bookings",
+  "/chat/page": "/chat",
+  "/discover/page": "/discover",
+  "/group/page": "/group",
+  "/map/page": "/map",
+  "/profile/page": "/profile",
+  "/page": "/"
+}

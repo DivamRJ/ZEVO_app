@@ -52,7 +52,10 @@ export default function ChatPage() {
   }, [rooms, showInterestedOnly, localProfile]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setRooms([]);
+      return;
+    }
 
     const loadRooms = async () => {
       const { data, error } = await supabase
@@ -67,13 +70,49 @@ export default function ChatPage() {
 
       const nextRooms = (data ?? []) as ArenaChatRoom[];
       setRooms(nextRooms);
-      if (!selectedRoomId && nextRooms.length > 0) {
-        setSelectedRoomId(nextRooms[0].id);
-      }
     };
 
     loadRooms();
-  }, [isAuthenticated, selectedRoomId]);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const roomsChannel = supabase
+      .channel("arena_chat_rooms_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "arena_chat_rooms" }, (payload) => {
+        const room = payload.new as ArenaChatRoom;
+        setRooms((current) => {
+          const exists = current.some((item) => item.id === room.id);
+          if (exists) return current;
+          return [room, ...current];
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "arena_chat_rooms" }, (payload) => {
+        const room = payload.new as ArenaChatRoom;
+        setRooms((current) => current.map((item) => (item.id === room.id ? room : item)));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "arena_chat_rooms" }, (payload) => {
+        const deletedRoomId = String(payload.old.id);
+        setRooms((current) => current.filter((item) => item.id !== deletedRoomId));
+        setSelectedRoomId((current) => (current === deletedRoomId ? null : current));
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(roomsChannel);
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!selectedRoomId && rooms.length > 0) {
+      setSelectedRoomId(rooms[0].id);
+      return;
+    }
+    if (selectedRoomId && !rooms.some((room) => room.id === selectedRoomId)) {
+      setSelectedRoomId(rooms[0]?.id ?? null);
+    }
+  }, [rooms, selectedRoomId]);
 
   useEffect(() => {
     if (!isAuthenticated || !selectedRoomId) {
@@ -97,6 +136,57 @@ export default function ChatPage() {
     };
 
     loadMessages();
+
+    const messagesChannel = supabase
+      .channel(`room_messages_realtime_${selectedRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${selectedRoomId}`
+        },
+        (payload) => {
+          const message = payload.new as MessageRecord;
+          setMessages((current) => {
+            const exists = current.some((item) => item.id === message.id);
+            if (exists) return current;
+            return [...current, message];
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${selectedRoomId}`
+        },
+        (payload) => {
+          const message = payload.new as MessageRecord;
+          setMessages((current) => current.map((item) => (item.id === message.id ? message : item)));
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${selectedRoomId}`
+        },
+        (payload) => {
+          const deletedMessageId = String(payload.old.id);
+          setMessages((current) => current.filter((item) => item.id !== deletedMessageId));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(messagesChannel);
+    };
   }, [isAuthenticated, selectedRoomId]);
 
   const createArenaChatRoom = async () => {
@@ -124,7 +214,6 @@ export default function ChatPage() {
     }
 
     const room = data as ArenaChatRoom;
-    setRooms((current) => [room, ...current]);
     setSelectedRoomId(room.id);
     setNewRoomTopic("");
     setChatStatus("Arena room created. You can start discussion now.");
@@ -139,7 +228,7 @@ export default function ChatPage() {
       user.email ??
       "Zevo User";
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("messages")
       .insert({
         room_id: selectedRoomId,
@@ -147,16 +236,13 @@ export default function ChatPage() {
         user_email: user.email ?? "unknown@zevo.app",
         sender_name: senderName,
         text: roomMessageInput.trim()
-      })
-      .select("id, room_id, user_id, user_email, sender_name, text, created_at")
-      .single();
+      });
 
     if (error) {
       setChatStatus(error.message);
       return;
     }
 
-    setMessages((current) => [...current, data as MessageRecord]);
     setRoomMessageInput("");
   };
 

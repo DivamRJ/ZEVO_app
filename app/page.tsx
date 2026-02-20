@@ -278,6 +278,7 @@ export default function IntroPage() {
           ))}
         </motion.div>
       </motion.section>
+
     </PageShell>
   );
 }

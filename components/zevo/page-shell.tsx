@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SiteFooter } from "@/components/zevo/site-footer";
 import { SiteNav } from "@/components/zevo/site-nav";
 import { ThemeToggle } from "@/components/zevo/theme-toggle";
 
@@ -9,6 +10,7 @@ export function PageShell({ children }: { children: ReactNode }) {
       <div className="mx-auto w-full max-w-7xl">
         <SiteNav />
         {children}
+        <SiteFooter />
       </div>
       <ThemeToggle />
     </main>
