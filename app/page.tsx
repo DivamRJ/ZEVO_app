@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { AuthPanel } from "@/components/zevo/auth-panel";
 import { PageShell } from "@/components/zevo/page-shell";
-import { SparklesPreview } from "@/components/zevo/sparkles-preview";
-import { BackgroundRippleEffectDemo } from "@/components/ui/background-ripple-effect-demo";
 import { useUser } from "@/hooks/use-user";
 import { SPORT_COLLAGE } from "@/lib/zevo-data";
 
@@ -104,59 +102,55 @@ export default function IntroPage() {
   };
 
   return (
-    <PageShell fullWidth>
-      <SparklesPreview />
-
+    <PageShell>
       <motion.section
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, amount: 0.2 }}
         variants={fadeIn}
         transition={{ duration: 0.5 }}
-        className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/75 px-4 py-6 sm:px-8 sm:py-10 lg:px-12"
+        className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/75 p-6 sm:p-10"
       >
-        <BackgroundRippleEffectDemo>
-          <div className="pointer-events-none absolute -left-8 top-0 h-44 w-44 rounded-full bg-neon/15 blur-3xl" />
-          <div className="pointer-events-none absolute -right-8 bottom-0 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -left-8 top-0 h-44 w-44 rounded-full bg-neon/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-8 bottom-0 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl" />
 
-          <div className="relative grid gap-10 px-2 sm:px-4 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <div className="pr-1 sm:pr-4">
-              <p className="mb-3 inline-flex rounded-full border border-neon/40 bg-neon/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-neon">
-                ZEVO Intro
-              </p>
-              <h1 className="text-4xl font-black leading-tight sm:text-5xl xl:text-6xl">
-                Your full local sports ecosystem, in one place.
-              </h1>
-              <p className="mt-4 max-w-xl text-sm text-zinc-300 sm:text-base">
-                ZEVO helps you discover where to play, who to play with, and when to lock your next session.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/profile" className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95">
-                  Create Profile
-                </Link>
-                <Link href="/discover" className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500">
-                  Start Exploring
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {SPORT_COLLAGE.slice(0, 8).map((item, index) => (
-                <motion.div
-                  key={item.sport}
-                  initial={{ opacity: 0, y: 14 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.35, delay: index * 0.07 }}
-                  className={`rounded-2xl border border-zinc-800 bg-gradient-to-br p-4 ${item.tone}`}
-                >
-                  <p className="text-2xl">{item.icon}</p>
-                  <p className="mt-3 text-sm font-semibold">{item.sport}</p>
-                </motion.div>
-              ))}
+        <div className="relative grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <p className="mb-3 inline-flex rounded-full border border-neon/40 bg-neon/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-neon">
+              ZEVO Intro
+            </p>
+            <h1 className="text-4xl font-black leading-tight sm:text-5xl xl:text-6xl">
+              Your full local sports ecosystem, in one place.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm text-zinc-300 sm:text-base">
+              ZEVO helps you discover where to play, who to play with, and when to lock your next session.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/profile" className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95">
+                Create Profile
+              </Link>
+              <Link href="/discover" className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500">
+                Start Exploring
+              </Link>
             </div>
           </div>
-        </BackgroundRippleEffectDemo>
+
+          <div className="grid grid-cols-2 gap-3">
+            {SPORT_COLLAGE.slice(0, 8).map((item, index) => (
+              <motion.div
+                key={item.sport}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.35, delay: index * 0.07 }}
+                className={`rounded-2xl border border-zinc-800 bg-gradient-to-br p-4 ${item.tone}`}
+              >
+                <p className="text-2xl">{item.icon}</p>
+                <p className="mt-3 text-sm font-semibold">{item.sport}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </motion.section>
 
       {!loading && !isAuthenticated ? (
