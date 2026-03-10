@@ -1,9 +1,17 @@
-"use client";
+\"use client\";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from \"react\";
 
-import { PageShell } from "@/components/zevo/page-shell";
-import { getTurfs, type TurfApi } from "@/lib/api-client";
+import { PageShell } from \"@/components/zevo/page-shell\";
+import { createClient } from \"@/utils/supabase/client\";
+
+type TurfRow = {
+  id: string;
+  name: string;
+  location: string;
+  price_per_hour: number;
+  time_zone: string;
+};
 
 type Coords = {
   lat: number;
@@ -23,7 +31,7 @@ function directionsUrl(destination: string, origin?: Coords | null) {
 }
 
 export default function MapPage() {
-  const [turfs, setTurfs] = useState<TurfApi[]>([]);
+  const [turfs, setTurfs] = useState<TurfRow[]>([]);
   const [selectedTurfId, setSelectedTurfId] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<Coords | null>(null);
   const [status, setStatus] = useState("Loading live turf map data...");
@@ -31,12 +39,31 @@ export default function MapPage() {
   useEffect(() => {
     const loadTurfs = async () => {
       try {
-        const payload = await getTurfs();
-        setTurfs(payload);
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("turfs")
+          .select("id, name, location, price_per_hour, time_zone")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
 
-        if (payload.length) {
-          setSelectedTurfId(payload[0].turf_id);
-          setStatus("Live turf list loaded from backend.");
+        if (error) {
+          throw error;
+        }
+
+        const rows: TurfRow[] =
+          data?.map((row) => ({
+            id: row.id as string,
+            name: row.name as string,
+            location: row.location as string,
+            price_per_hour: Number(row.price_per_hour ?? 0),
+            time_zone: row.time_zone as string
+          })) ?? [];
+
+        setTurfs(rows);
+
+        if (rows.length) {
+          setSelectedTurfId(rows[0].id);
+          setStatus("Live turf list loaded from Supabase.");
         } else {
           setStatus("No turfs available in database.");
         }
@@ -51,7 +78,7 @@ export default function MapPage() {
 
   const selectedTurf = useMemo(() => {
     if (!selectedTurfId) return null;
-    return turfs.find((turf) => turf.turf_id === selectedTurfId) || null;
+    return turfs.find((turf) => turf.id === selectedTurfId) || null;
   }, [turfs, selectedTurfId]);
 
   const requestUserLocation = () => {
@@ -133,11 +160,11 @@ export default function MapPage() {
       <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {turfs.map((turf) => (
           <button
-            key={turf.turf_id}
+            key={turf.id}
             type="button"
-            onClick={() => setSelectedTurfId(turf.turf_id)}
+            onClick={() => setSelectedTurfId(turf.id)}
             className={`rounded-xl border p-3 text-left text-sm transition ${
-              selectedTurfId === turf.turf_id
+              selectedTurfId === turf.id
                 ? "border-neon bg-neon/10 text-zinc-100"
                 : "border-zinc-800 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500"
             }`}

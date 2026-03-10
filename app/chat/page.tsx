@@ -1,34 +1,37 @@
-"use client";
+\"use client\";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Link from \"next/link\";
+import { useEffect, useMemo, useState } from \"react\";
 
-import { PageShell } from "@/components/zevo/page-shell";
-import { useUser } from "@/hooks/use-user";
-import { getTurfs, type TurfApi } from "@/lib/api-client";
-import {
-  getArenaChatMessages,
-  getArenaChatRooms,
-  saveArenaChatMessages,
-  saveArenaChatRooms,
-  type ArenaChatRoom,
-  type ArenaRoomMessage
-} from "@/lib/zevo-storage";
+import { PageShell } from \"@/components/zevo/page-shell\";
+import { useUser } from \"@/hooks/use-user\";
+import { createClient } from \"@/utils/supabase/client\";
 
-const ROOMS_EVENT = "zevo-arena-rooms-updated";
-const MESSAGES_EVENT = "zevo-arena-messages-updated";
+type ArenaChatRoomRow = {
+  id: string;
+  arena_id: string;
+  arena_name: string;
+  sport: string;
+  topic: string;
+  created_by: string;
+  created_at: string;
+};
 
-function notify(eventName: string) {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(eventName));
-}
+type ArenaRoomMessageRow = {
+  id: string;
+  room_id: string;
+  user_id: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
+};
 
 export default function ChatPage() {
   const { user, loading, isAuthenticated } = useUser();
 
-  const [rooms, setRooms] = useState<ArenaChatRoom[]>([]);
-  const [messages, setMessages] = useState<ArenaRoomMessage[]>([]);
-  const [turfs, setTurfs] = useState<TurfApi[]>([]);
+  const [rooms, setRooms] = useState<ArenaChatRoomRow[]>([]);
+  const [messages, setMessages] = useState<ArenaRoomMessageRow[]>([]);
+  const [arenas, setArenas] = useState<{ id: string; name: string; location: string; sport: string }[]>([]);
   const [chatStatus, setChatStatus] = useState("Create or join an arena room to discuss plans.");
 
   const [newRoomArenaId, setNewRoomArenaId] = useState("");
@@ -47,20 +50,38 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setTurfs([]);
+      setArenas([]);
       setNewRoomArenaId("");
       return;
     }
 
     const loadTurfs = async () => {
       try {
-        const payload = await getTurfs();
-        setTurfs(payload);
-        if (payload.length) {
-          setNewRoomArenaId((current) => current || payload[0].turf_id);
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("turfs")
+          .select("id, name, location")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        const arenaRows =
+          data?.map((row) => ({
+            id: row.id as string,
+            name: row.name as string,
+            location: row.location as string,
+            sport: "General"
+          })) ?? [];
+
+        setArenas(arenaRows);
+        if (arenaRows.length) {
+          setNewRoomArenaId((current) => current || arenaRows[0].id);
         }
       } catch {
-        setTurfs([]);
+        setArenas([]);
       }
     };
 
@@ -68,32 +89,35 @@ export default function ChatPage() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    const loadRooms = () => {
-      const nextRooms = getArenaChatRooms().sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setRooms(nextRooms);
-    };
-
     if (!isAuthenticated) {
       setRooms([]);
       setSelectedRoomId(null);
       return;
     }
 
-    loadRooms();
+    const loadRooms = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("arena_chat_rooms")
+        .select("id, arena_id, arena_name, sport, topic, created_by, created_at")
+        .order("created_at", { ascending: false });
 
-    const onStorage = () => {
-      loadRooms();
+      if (!error && data) {
+        setRooms(
+          data.map((row) => ({
+            id: row.id as string,
+            arena_id: row.arena_id as string,
+            arena_name: row.arena_name as string,
+            sport: row.sport as string,
+            topic: row.topic as string,
+            created_by: row.created_by as string,
+            created_at: row.created_at as string
+          }))
+        );
+      }
     };
 
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(ROOMS_EVENT, onStorage);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(ROOMS_EVENT, onStorage);
-    };
+    void loadRooms();
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -108,82 +132,103 @@ export default function ChatPage() {
   }, [rooms, selectedRoomId]);
 
   useEffect(() => {
-    const loadMessages = () => {
-      if (!selectedRoomId) {
-        setMessages([]);
-        return;
-      }
-
-      const nextMessages = getArenaChatMessages()
-        .filter((message) => message.roomId === selectedRoomId)
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-
-      setMessages(nextMessages);
-    };
-
     if (!isAuthenticated || !selectedRoomId) {
       setMessages([]);
       return;
     }
 
-    loadMessages();
+    const loadMessages = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("arena_chat_messages")
+        .select("id, room_id, user_id, sender_name, body, created_at")
+        .eq("room_id", selectedRoomId)
+        .order("created_at", { ascending: true });
 
-    const onStorage = () => {
-      loadMessages();
+      if (!error && data) {
+        setMessages(
+          data.map((row) => ({
+            id: row.id as string,
+            room_id: row.room_id as string,
+            user_id: row.user_id as string,
+            sender_name: row.sender_name as string,
+            body: row.body as string,
+            created_at: row.created_at as string
+          }))
+        );
+      }
     };
 
-    window.addEventListener("storage", onStorage);
-    window.addEventListener(MESSAGES_EVENT, onStorage);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener(MESSAGES_EVENT, onStorage);
-    };
+    void loadMessages();
   }, [isAuthenticated, selectedRoomId]);
 
   const createArenaChatRoom = () => {
-    if (!user || turfs.length === 0) return;
+    if (!user || arenas.length === 0) return;
 
-    const arena = turfs.find((item) => item.turf_id === newRoomArenaId) ?? turfs[0];
+    const arena = arenas.find((item) => item.id === newRoomArenaId) ?? arenas[0];
     const topic = newRoomTopic.trim() || `Discussion for ${arena.name}`;
+    const supabase = createClient();
 
-    const nextRoom: ArenaChatRoom = {
-      id: crypto.randomUUID(),
-      arenaId: arena.turf_id,
-      arenaName: arena.name,
-      sport: "General",
-      topic,
-      createdBy: user.email,
-      createdAt: new Date().toISOString()
-    };
+    supabase
+      .from("arena_chat_rooms")
+      .insert({
+        arena_id: arena.id,
+        arena_name: arena.name,
+        sport: "General",
+        topic,
+        created_by: user.id
+      })
+      .select("id, arena_id, arena_name, sport, topic, created_by, created_at")
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) return;
 
-    const nextRooms = [nextRoom, ...getArenaChatRooms()];
-    saveArenaChatRooms(nextRooms);
-    notify(ROOMS_EVENT);
+        const nextRoom: ArenaChatRoomRow = {
+          id: data.id as string,
+          arena_id: data.arena_id as string,
+          arena_name: data.arena_name as string,
+          sport: data.sport as string,
+          topic: data.topic as string,
+          created_by: data.created_by as string,
+          created_at: data.created_at as string
+        };
 
-    setRooms(nextRooms);
-    setSelectedRoomId(nextRoom.id);
-    setNewRoomTopic("");
-    setChatStatus("Arena room created. You can start discussion now.");
+        setRooms((current) => [nextRoom, ...current]);
+        setSelectedRoomId(nextRoom.id);
+        setNewRoomTopic("");
+        setChatStatus("Arena room created. You can start discussion now.");
+      });
   };
 
   const sendRoomMessage = () => {
     if (!user || !selectedRoomId || !roomMessageInput.trim()) return;
+    const supabase = createClient();
 
-    const nextMessage: ArenaRoomMessage = {
-      id: crypto.randomUUID(),
-      roomId: selectedRoomId,
-      senderName: user.name || user.email,
-      text: roomMessageInput.trim(),
-      createdAt: new Date().toISOString()
-    };
+    supabase
+      .from("arena_chat_messages")
+      .insert({
+        room_id: selectedRoomId,
+        user_id: user.id,
+        sender_name: user.name || user.email,
+        body: roomMessageInput.trim()
+      })
+      .select("id, room_id, user_id, sender_name, body, created_at")
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) return;
 
-    const allMessages = [...getArenaChatMessages(), nextMessage];
-    saveArenaChatMessages(allMessages);
-    notify(MESSAGES_EVENT);
+        const nextMessage: ArenaRoomMessageRow = {
+          id: data.id as string,
+          room_id: data.room_id as string,
+          user_id: data.user_id as string,
+          sender_name: data.sender_name as string,
+          body: data.body as string,
+          created_at: data.created_at as string
+        };
 
-    setMessages((current) => [...current, nextMessage]);
-    setRoomMessageInput("");
+        setMessages((current) => [...current, nextMessage]);
+        setRoomMessageInput("");
+      });
   };
 
   if (loading) {
@@ -244,8 +289,8 @@ export default function ChatPage() {
             onChange={(e) => setNewRoomArenaId(e.target.value)}
             className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100"
           >
-            {turfs.map((arena) => (
-              <option key={arena.turf_id} value={arena.turf_id}>
+            {arenas.map((arena) => (
+              <option key={arena.id} value={arena.id}>
                 {arena.name} - {arena.location}
               </option>
             ))}
@@ -300,11 +345,11 @@ export default function ChatPage() {
                         : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-600"
                     }`}
                   >
-                    <p className="font-semibold">{room.arenaName}</p>
+                    <p className="font-semibold">{room.arena_name}</p>
                     <p className="text-xs text-zinc-400">
                       {room.sport} • {room.topic}
                     </p>
-                    <p className="text-[11px] text-zinc-500">Created by {room.createdBy}</p>
+                    <p className="text-[11px] text-zinc-500">Created by {room.created_by}</p>
                     {interested ? (
                       <p className="mt-1 inline-flex rounded-full border border-neon/70 bg-neon/10 px-2 py-0.5 text-[10px] font-semibold text-neon">
                         Matches your interests
@@ -329,9 +374,9 @@ export default function ChatPage() {
                 ) : (
                   messages.map((message) => (
                     <div key={message.id} className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-2 text-sm">
-                      <p className="font-semibold">{message.senderName}</p>
-                      <p className="text-xs text-zinc-500">{new Date(message.createdAt).toLocaleString()}</p>
-                      <p className="mt-1">{message.text}</p>
+                      <p className="font-semibold">{message.sender_name}</p>
+                      <p className="text-xs text-zinc-500">{new Date(message.created_at).toLocaleString()}</p>
+                      <p className="mt-1">{message.body}</p>
                     </div>
                   ))
                 )}

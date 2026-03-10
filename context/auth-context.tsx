@@ -1,117 +1,213 @@
-"use client";
+\"use client\";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from \"react\";
+import type { Session, User as SupabaseUser } from \"@supabase/supabase-js\";
 
-import {
-  clearStoredAuthSession,
-  getCurrentUser,
-  getStoredAuthSession,
-  login,
-  signup,
-  type AuthSession,
-  type AuthUser
-} from "@/lib/api-client";
+import { createClient } from \"@/utils/supabase/client\";
+
+type ZevoUserRole = \"PLAYER\" | \"OWNER\" | \"ADMIN\";
+
+export type ZevoUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: ZevoUserRole;
+  walletBalance: number;
+  city: string | null;
+  skillLevel: string;
+  interests: string[];
+};
+
+type AuthSessionState = {
+  token: string | null;
+  user: ZevoUser | null;
+};
 
 type AuthContextValue = {
-  user: AuthUser | null;
+  user: ZevoUser | null;
   token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
-  setCurrentUser: (user: AuthUser) => void;
+  setCurrentUser: (user: ZevoUser) => void;
   refreshCurrentUser: () => Promise<void>;
   loginUser: (input: { email: string; password: string }) => Promise<void>;
-  signupUser: (input: { name: string; email: string; password: string; role?: "PLAYER" | "OWNER" }) => Promise<void>;
-  logoutUser: () => void;
+  signupUser: (input: { name: string; email: string; password: string; role?: ZevoUserRole }) => Promise<void>;
+  logoutUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function mapProfileToZevoUser(authUser: SupabaseUser, profile: any): ZevoUser {
+  return {
+    id: authUser.id,
+    email: authUser.email ?? profile?.email ?? \"\",
+    name: profile?.display_name ?? authUser.user_metadata?.name ?? authUser.email ?? \"ZEVO User\",
+    role: (profile?.role as ZevoUserRole) ?? \"PLAYER\",
+    walletBalance: Number(profile?.wallet_balance ?? 0),
+    city: profile?.city ?? null,
+    skillLevel: profile?.skill_level ?? \"Beginner\",
+    interests: Array.isArray(profile?.interests) ? profile.interests : []
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(null);
+  const [session, setSession] = useState<AuthSessionState>({ token: null, user: null });
   const [loading, setLoading] = useState(true);
 
-  const hydrateSession = useCallback(async () => {
-    const stored = getStoredAuthSession();
+  const supabase = useMemo(() => createClient(), []);
 
-    if (!stored) {
-      setSession(null);
-      setLoading(false);
-      return;
-    }
+  const hydrateFromSession = useCallback(
+    async (supabaseSession: Session | null) => {
+      if (!supabaseSession?.user) {
+        setSession({ token: null, user: null });
+        return;
+      }
 
-    try {
-      const user = await getCurrentUser();
-      setSession({ token: stored.token, user });
-    } catch (error) {
-      clearStoredAuthSession();
-      setSession(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const authUser = supabaseSession.user;
 
-  useEffect(() => {
-    void hydrateSession();
+      const { data: profile, error } = await supabase
+        .from(\"profiles\")
+        .select(\"id, email, display_name, role, wallet_balance, city, skill_level, interests\")
+        .eq(\"id\", authUser.id)
+        .maybeSingle();
 
-    const onSessionChange = () => {
-      void hydrateSession();
-    };
+      if (error) {
+        // If profile lookup fails, still keep basic auth identity.
+        const fallbackUser: ZevoUser = {
+          id: authUser.id,
+          email: authUser.email ?? \"\",
+          name: authUser.user_metadata?.name ?? authUser.email ?? \"ZEVO User\",
+          role: \"PLAYER\",
+          walletBalance: 0,
+          city: null,
+          skillLevel: \"Beginner\",
+          interests: []
+        };
 
-    window.addEventListener("storage", onSessionChange);
-    window.addEventListener("zevo-auth-changed", onSessionChange as EventListener);
+        setSession({
+          token: supabaseSession.access_token ?? null,
+          user: fallbackUser
+        });
 
-    return () => {
-      window.removeEventListener("storage", onSessionChange);
-      window.removeEventListener("zevo-auth-changed", onSessionChange as EventListener);
-    };
-  }, [hydrateSession]);
+        return;
+      }
 
-  const loginUser = useCallback(async (input: { email: string; password: string }) => {
-    const auth = await login(input);
-    setSession(auth);
-  }, []);
+      const zevoUser = mapProfileToZevoUser(authUser, profile);
 
-  const signupUser = useCallback(
-    async (input: { name: string; email: string; password: string; role?: "PLAYER" | "OWNER" }) => {
-      const auth = await signup(input);
-      setSession(auth);
+      setSession({
+        token: supabaseSession.access_token ?? null,
+        user: zevoUser
+      });
     },
-    []
+    [supabase]
   );
 
-  const logoutUser = useCallback(() => {
-    clearStoredAuthSession();
-    setSession(null);
-  }, []);
-
-  const setCurrentUser = useCallback((user: AuthUser) => {
-    setSession((current) => {
-      if (!current?.token) return current;
-      return {
-        token: current.token,
-        user
-      };
-    });
-  }, []);
-
   const refreshCurrentUser = useCallback(async () => {
-    const stored = getStoredAuthSession();
-
-    if (!stored?.token) {
-      setSession(null);
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      setSession({ token: null, user: null });
       return;
     }
 
-    const user = await getCurrentUser();
-    setSession({ token: stored.token, user });
+    await hydrateFromSession(data.session);
+  }, [supabase, hydrateFromSession]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          if (isMounted) {
+            setSession({ token: null, user: null });
+          }
+          return;
+        }
+
+        if (isMounted) {
+          await hydrateFromSession(data.session);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void init();
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      void hydrateFromSession(newSession);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase, hydrateFromSession]);
+
+  const loginUser = useCallback(
+    async (input: { email: string; password: string }) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: input.email,
+        password: input.password
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await hydrateFromSession(data.session);
+    },
+    [supabase, hydrateFromSession]
+  );
+
+  const signupUser = useCallback(
+    async (input: { name: string; email: string; password: string; role?: ZevoUserRole }) => {
+      const { data, error } = await supabase.auth.signUp({
+        email: input.email,
+        password: input.password,
+        options: {
+          data: {
+            name: input.name,
+            role: input.role ?? \"PLAYER\"
+          }
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      await hydrateFromSession(data.session);
+    },
+    [supabase, hydrateFromSession]
+  );
+
+  const logoutUser = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw error;
+    }
+    setSession({ token: null, user: null });
+  }, [supabase]);
+
+  const setCurrentUser = useCallback((user: ZevoUser) => {
+    setSession((current) => ({
+      token: current.token,
+      user
+    }));
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user: session?.user ?? null,
-      token: session?.token ?? null,
+      user: session.user,
+      token: session.token,
       loading,
-      isAuthenticated: Boolean(session?.token),
+      isAuthenticated: Boolean(session.user),
       setCurrentUser,
       refreshCurrentUser,
       loginUser,
@@ -128,7 +224,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error("useAuth must be used within AuthProvider.");
+    throw new Error(\"useAuth must be used within AuthProvider.\");
   }
 
   return context;

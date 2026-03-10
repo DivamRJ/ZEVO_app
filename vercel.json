@@ -1,5 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci && npm --prefix backend ci && npm --prefix backend run prisma:generate",
-  "buildCommand": "npm run build"
-}

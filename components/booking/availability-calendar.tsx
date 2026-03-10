@@ -1,8 +1,8 @@
-"use client";
+\"use client\";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from \"react\";
 
-import { getAvailableSlots, type SlotApi } from "@/lib/api-client";
+import { createClient } from \"@/utils/supabase/client\";
 
 type AvailabilityCalendarProps = {
   turf_id: string | null;
@@ -20,7 +20,7 @@ function getTodayDateInputValue() {
 
 export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: AvailabilityCalendarProps) {
   const [date, setDate] = useState(getTodayDateInputValue);
-  const [slots, setSlots] = useState<SlotApi[]>([]);
+  const [slots, setSlots] = useState<{ start_time: string; end_time: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,14 +35,30 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
         setLoading(true);
         setError(null);
 
-        const payload = await getAvailableSlots({
-          turf_id,
-          date,
-          slotMinutes: 60
-        });
+        const supabase = createClient();
+        const dayStart = new Date(date);
+        const dayEnd = new Date(date);
+        dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+
+        const { data, error } = await supabase
+          .from("bookings")
+          .select("start_time, end_time, status, lock_expires_at")
+          .eq("turf_id", turf_id)
+          .gte("start_time", dayStart.toISOString())
+          .lt("start_time", dayEnd.toISOString());
+
+        if (error) {
+          throw error;
+        }
+
+        const existing: { start_time: string; end_time: string }[] =
+          data?.map((row) => ({
+            start_time: row.start_time as string,
+            end_time: row.end_time as string
+          })) ?? [];
 
         const now = Date.now();
-        const futureSlots = payload.slots.filter((slot) => new Date(slot.start_time).getTime() > now);
+        const futureSlots = existing.filter((slot) => new Date(slot.start_time).getTime() > now);
         setSlots(futureSlots);
       } catch (caughtError) {
         const message = caughtError instanceof Error ? caughtError.message : "Failed to fetch available slots.";

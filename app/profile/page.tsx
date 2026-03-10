@@ -6,7 +6,7 @@ import { AuthPanel } from "@/components/zevo/auth-panel";
 import { Progress } from "@/components/ui/progress";
 import { PageShell } from "@/components/zevo/page-shell";
 import { useAuth } from "@/context/auth-context";
-import { addWalletFunds, updateUserProfile } from "@/lib/api-client";
+import { createClient } from "@/utils/supabase/client";
 import { SPORTS } from "@/lib/zevo-data";
 
 const SKILL_LEVELS = ["Beginner", "Intermediate", "Advanced"];
@@ -54,13 +54,35 @@ export default function ProfilePage() {
 
     try {
       setSubmitting(true);
-      const payload = await updateUserProfile({
-        city: city.trim(),
-        skillLevel,
-        interests
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          city: city.trim(),
+          skill_level: skillLevel,
+          interests
+        })
+        .eq("id", user.id)
+        .select(
+          "id, email, display_name, role, wallet_balance, city, skill_level, interests"
+        )
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setCurrentUser({
+        id: data.id,
+        email: data.email,
+        name: data.display_name,
+        role: data.role,
+        walletBalance: Number(data.wallet_balance ?? 0),
+        city: data.city,
+        skillLevel: data.skill_level,
+        interests: Array.isArray(data.interests) ? data.interests : []
       });
-      setCurrentUser(payload.user);
-      setStatus("Profile saved to backend.");
+      setStatus("Profile saved to Supabase.");
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : "Failed to save profile.";
       setStatus(message);
@@ -77,8 +99,32 @@ export default function ProfilePage() {
 
     try {
       setAddingFunds(true);
-      const payload = await addWalletFunds(500);
-      setCurrentUser(payload.user);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          wallet_balance: (user.walletBalance ?? 0) + 500
+        })
+        .eq("id", user.id)
+        .select(
+          "id, email, display_name, role, wallet_balance, city, skill_level, interests"
+        )
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      setCurrentUser({
+        id: data.id,
+        email: data.email,
+        name: data.display_name,
+        role: data.role,
+        walletBalance: Number(data.wallet_balance ?? 0),
+        city: data.city,
+        skillLevel: data.skill_level,
+        interests: Array.isArray(data.interests) ? data.interests : []
+      });
       setStatus("Added Rs. 500 to wallet.");
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : "Failed to add wallet funds.";

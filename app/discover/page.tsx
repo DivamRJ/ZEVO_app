@@ -1,10 +1,18 @@
-"use client";
+\"use client\";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Link from \"next/link\";
+import { useEffect, useMemo, useState } from \"react\";
 
-import { PageShell } from "@/components/zevo/page-shell";
-import { getTurfs, type TurfApi } from "@/lib/api-client";
+import { PageShell } from \"@/components/zevo/page-shell\";
+import { createClient } from \"@/utils/supabase/client\";
+
+type TurfRow = {
+  id: string;
+  name: string;
+  location: string;
+  price_per_hour: number;
+  time_zone: string;
+};
 
 function getCity(location: string) {
   const parts = location.split(",").map((part) => part.trim()).filter(Boolean);
@@ -16,7 +24,7 @@ function getArenaDescription(turf: TurfApi) {
 }
 
 export default function DiscoverPage() {
-  const [turfs, setTurfs] = useState<TurfApi[]>([]);
+  const [turfs, setTurfs] = useState<TurfRow[]>([]);
   const [activeFilter, setActiveFilter] = useState("All");
   const [expandedArenaId, setExpandedArenaId] = useState<string | null>(null);
   const [status, setStatus] = useState("Loading arenas from backend...");
@@ -24,9 +32,28 @@ export default function DiscoverPage() {
   useEffect(() => {
     const loadTurfs = async () => {
       try {
-        const payload = await getTurfs();
-        setTurfs(payload);
-        setStatus(payload.length ? "Live arena list loaded from backend." : "No turfs found in database.");
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("turfs")
+          .select("id, name, location, price_per_hour, time_zone")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          throw error;
+        }
+
+        const rows: TurfRow[] =
+          data?.map((row) => ({
+            id: row.id as string,
+            name: row.name as string,
+            location: row.location as string,
+            price_per_hour: Number(row.price_per_hour ?? 0),
+            time_zone: row.time_zone as string
+          })) ?? [];
+
+        setTurfs(rows);
+        setStatus(rows.length ? "Live arena list loaded from Supabase." : "No turfs found in database.");
       } catch (caughtError) {
         const message = caughtError instanceof Error ? caughtError.message : "Failed to load turfs.";
         setStatus(message);
@@ -80,7 +107,7 @@ export default function DiscoverPage() {
         <div className="flex min-w-max gap-3">
           {featuredTurfs.map((turf) => (
             <article
-              key={turf.turf_id}
+              key={turf.id}
               className="w-64 rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 p-4"
             >
               <p className="text-xs uppercase tracking-wide text-cyan-300">Live Arena</p>
@@ -93,8 +120,8 @@ export default function DiscoverPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {filteredTurfs.map((turf) => (
-          <article key={turf.turf_id} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+            {filteredTurfs.map((turf) => (
+          <article key={turf.id} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
             <button
               type="button"
               onClick={() => setExpandedArenaId((current) => (current === turf.turf_id ? null : turf.turf_id))}
@@ -102,7 +129,7 @@ export default function DiscoverPage() {
             >
               <h3 className="text-base font-semibold">{turf.name}</h3>
               <p className="mt-1 text-sm text-zinc-400">{turf.location}</p>
-              <p className="mt-2 text-sm text-zinc-300">Timezone: {turf.timezone}</p>
+              <p className="mt-2 text-sm text-zinc-300">Timezone: {turf.time_zone}</p>
               <p className="text-sm text-zinc-300">Price: Rs. {turf.price_per_hour}/hour</p>
               <p className="mt-2 text-xs font-semibold text-neon">
                 {expandedArenaId === turf.turf_id ? "Hide details" : "View details"}
@@ -113,7 +140,7 @@ export default function DiscoverPage() {
               <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
                 <p className="text-sm text-zinc-300">{getArenaDescription(turf)}</p>
                 <Link
-                  href={`/bookings?turf_id=${encodeURIComponent(turf.turf_id)}`}
+                  href={`/bookings?turf_id=${encodeURIComponent(turf.id)}`}
                   className="mt-3 inline-block rounded-xl bg-neon px-4 py-2 text-xs font-bold text-zinc-900 hover:brightness-95"
                 >
                   Book Now

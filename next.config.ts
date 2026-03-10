@@ -8,13 +8,6 @@ const nextConfig: NextConfig = {
         hostname: "**"
       }
     ]
-  },
-  outputFileTracingIncludes: {
-    "/*": [
-      "./backend/node_modules/.prisma/client/**/*",
-      "./backend/node_modules/@prisma/client/**/*",
-      "./backend/prisma/**/*"
-    ]
   }
 };
 

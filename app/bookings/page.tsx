@@ -1,43 +1,86 @@
-"use client";
+\"use client\";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from \"react\";
 
-import { ProtectedRoute } from "@/components/auth/protected-route";
-import { AvailabilityCalendar } from "@/components/booking/availability-calendar";
-import { BookingForm } from "@/components/booking/booking-form";
-import { TurfCard } from "@/components/booking/turf-card";
-import { PageShell } from "@/components/zevo/page-shell";
-import { getTurfs, type BookingApi, type TurfApi } from "@/lib/api-client";
+import { ProtectedRoute } from \"@/components/auth/protected-route\";
+import { AvailabilityCalendar } from \"@/components/booking/availability-calendar\";
+import { BookingForm } from \"@/components/booking/booking-form\";
+import { TurfCard } from \"@/components/booking/turf-card\";
+import { PageShell } from \"@/components/zevo/page-shell\";
+import { createClient } from \"@/utils/supabase/client\";
+
+export type BookingRow = {
+  id: string;
+  user_id: string;
+  turf_id: string;
+  start_time: string;
+  end_time: string;
+  total_price: number;
+  status: \"PENDING\" | \"CONFIRMED\" | \"COMPLETED\" | \"CANCELLED\";
+  lock_expires_at: string | null;
+  confirmed_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+};
+
+export type TurfRow = {
+  id: string;
+  name: string;
+  owner_id: string;
+  location: string;
+  time_zone: string;
+  price_per_hour: number;
+};
 
 export default function BookingsPage() {
-  const [turfs, setTurfs] = useState<TurfApi[]>([]);
-  const [selectedTurf, setSelectedTurf] = useState<TurfApi | null>(null);
+  const [turfs, setTurfs] = useState<TurfRow[]>([]);
+  const [selectedTurf, setSelectedTurf] = useState<TurfRow | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start_time: string; end_time: string } | null>(null);
-  const [status, setStatus] = useState("Loading turfs...");
-  const [latestBooking, setLatestBooking] = useState<BookingApi | null>(null);
+  const [status, setStatus] = useState(\"Loading turfs...\");
+  const [latestBooking, setLatestBooking] = useState<BookingRow | null>(null);
 
   useEffect(() => {
     const loadTurfs = async () => {
       try {
-        const payload = await getTurfs();
-        setTurfs(payload);
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from(\"turfs\")
+          .select(\"id, owner_id, name, location, price_per_hour, time_zone\")
+          .eq(\"is_active\", true)
+          .order(\"created_at\", { ascending: false });
 
-        if (payload.length > 0) {
+        if (error) {
+          throw error;
+        }
+
+        const rows: TurfRow[] =
+          data?.map((row) => ({
+            id: row.id as string,
+            owner_id: row.owner_id as string,
+            name: row.name as string,
+            location: row.location as string,
+            price_per_hour: Number(row.price_per_hour ?? 0),
+            time_zone: row.time_zone as string
+          })) ?? [];
+
+        setTurfs(rows);
+
+        if (rows.length > 0) {
           const requestedTurfId =
-            typeof window !== "undefined"
-              ? new URLSearchParams(window.location.search).get("turf_id")
+            typeof window !== \"undefined\"
+              ? new URLSearchParams(window.location.search).get(\"turf_id\")
               : null;
           const requestedTurf = requestedTurfId
-            ? payload.find((item) => item.turf_id === requestedTurfId) || null
+            ? rows.find((item) => item.id === requestedTurfId) || null
             : null;
 
-          setSelectedTurf(requestedTurf || payload[0]);
-          setStatus("Select a slot and start the booking flow.");
+          setSelectedTurf(requestedTurf || rows[0]);
+          setStatus(\"Select a slot and start the booking flow.\");
         } else {
-          setStatus("No turfs found from backend.");
+          setStatus(\"No turfs found in database.\");
         }
       } catch (caughtError) {
-        const message = caughtError instanceof Error ? caughtError.message : "Failed to load turfs.";
+        const message = caughtError instanceof Error ? caughtError.message : \"Failed to load turfs.\";
         setStatus(message);
       }
     };
@@ -83,7 +126,7 @@ export default function BookingsPage() {
 
         <section className="grid gap-6 lg:grid-cols-2">
           <AvailabilityCalendar
-            turf_id={selectedTurf?.turf_id ?? null}
+            turf_id={selectedTurf?.id ?? null}
             selectedSlot={selectedSlot}
             onSelectSlot={(slot) => {
               setSelectedSlot(slot);

@@ -2,13 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
-import {
-  confirmBookingPayment,
-  getActiveBookings,
-  lockBooking,
-  type BookingApi,
-  type TurfApi
-} from "@/lib/api-client";
+import { createClient } from "@/utils/supabase/client";
+import type { BookingRow, TurfRow } from "@/app/bookings/page";
 
 type Slot = {
   start_time: string;
@@ -18,7 +13,7 @@ type Slot = {
 type FlowState = {
   status: "IDLE" | "LOCKING" | "LOCKED" | "CONFIRMING" | "CONFIRMED" | "EXPIRED" | "ERROR";
   message: string;
-  booking: BookingApi | null;
+  booking: BookingRow | null;
   countdownSeconds: number;
 };
 
@@ -153,9 +148,9 @@ function validateSlot(slot: Slot) {
 }
 
 type BookingFormProps = {
-  selectedTurf: TurfApi | null;
+  selectedTurf: TurfRow | null;
   selectedSlot: Slot | null;
-  onBookingConfirmed?: (booking: BookingApi) => void;
+  onBookingConfirmed?: (booking: BookingRow) => void;
 };
 
 export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: BookingFormProps) {
@@ -166,16 +161,38 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
 
     const hydratePendingLock = async () => {
       try {
-        const bookings = await getActiveBookings();
-        const pending = bookings.find(
-          (booking) =>
-            booking.turf_id === selectedTurf.turf_id &&
-            booking.status === "PENDING" &&
-            Boolean(booking.lock_expires_at) &&
-            new Date(booking.lock_expires_at as string).getTime() > Date.now()
-        );
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("bookings")
+          .select(
+            "id, user_id, turf_id, start_time, end_time, total_price, status, lock_expires_at, confirmed_at, completed_at, cancelled_at"
+          )
+          .eq("turf_id", selectedTurf.id)
+          .eq("status", "PENDING");
 
-        if (pending) {
+        if (error) {
+          return;
+        }
+
+        const pendingRow =
+          data?.find(
+            (row) => row.lock_expires_at && new Date(row.lock_expires_at as string).getTime() > Date.now()
+          ) ?? null;
+
+        if (pendingRow) {
+          const pending: BookingRow = {
+            id: pendingRow.id as string,
+            user_id: pendingRow.user_id as string,
+            turf_id: pendingRow.turf_id as string,
+            start_time: pendingRow.start_time as string,
+            end_time: pendingRow.end_time as string,
+            total_price: Number(pendingRow.total_price ?? 0),
+            status: pendingRow.status as BookingRow["status"],
+            lock_expires_at: pendingRow.lock_expires_at as string | null,
+            confirmed_at: pendingRow.confirmed_at as string | null,
+            completed_at: pendingRow.completed_at as string | null,
+            cancelled_at: pendingRow.cancelled_at as string | null
+          };
           dispatch({ type: "REHYDRATE_LOCK", booking: pending });
         }
       } catch {
@@ -211,13 +228,13 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     if (!selectedTurf || !selectedSlot) return null;
 
     return {
-      turf_id: selectedTurf.turf_id,
+      turf_id: selectedTurf.id,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time
     };
   }, [selectedTurf, selectedSlot]);
 
-  const requestLock = useCallback(async (turf: TurfApi, slot: Slot) => {
+  const requestLock = useCallback(async (turf: TurfRow, slot: Slot) => {
     const validationError = validateSlot(slot);
 
     if (validationError) {
@@ -228,13 +245,39 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     dispatch({ type: "LOCK_REQUEST" });
 
     try {
-      const response = await lockBooking({
-        turf_id: turf.turf_id,
-        start_time: slot.start_time,
-        end_time: slot.end_time
-      });
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("bookings")
+        .insert({
+          turf_id: turf.id,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          status: "PENDING"
+        })
+        .select(
+          "id, user_id, turf_id, start_time, end_time, total_price, status, lock_expires_at, confirmed_at, completed_at, cancelled_at"
+        )
+        .single();
 
-      dispatch({ type: "LOCK_SUCCESS", booking: response.booking });
+      if (error) {
+        throw error;
+      }
+
+      const booking: BookingRow = {
+        id: data.id as string,
+        user_id: data.user_id as string,
+        turf_id: data.turf_id as string,
+        start_time: data.start_time as string,
+        end_time: data.end_time as string,
+        total_price: Number(data.total_price ?? 0),
+        status: data.status as BookingRow["status"],
+        lock_expires_at: data.lock_expires_at as string | null,
+        confirmed_at: data.confirmed_at as string | null,
+        completed_at: data.completed_at as string | null,
+        cancelled_at: data.cancelled_at as string | null
+      };
+
+      dispatch({ type: "LOCK_SUCCESS", booking });
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : "Failed to lock slot.";
       dispatch({ type: "LOCK_FAILURE", message });
@@ -262,12 +305,38 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     dispatch({ type: "CONFIRM_REQUEST" });
 
     try {
-      const response = await confirmBookingPayment({
-        booking_id: state.booking.booking_id
-      });
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("bookings")
+        .update({
+          status: "CONFIRMED"
+        })
+        .eq("id", state.booking.id)
+        .select(
+          "id, user_id, turf_id, start_time, end_time, total_price, status, lock_expires_at, confirmed_at, completed_at, cancelled_at"
+        )
+        .single();
 
-      dispatch({ type: "CONFIRM_SUCCESS", booking: response.booking });
-      onBookingConfirmed?.(response.booking);
+      if (error) {
+        throw error;
+      }
+
+      const booking: BookingRow = {
+        id: data.id as string,
+        user_id: data.user_id as string,
+        turf_id: data.turf_id as string,
+        start_time: data.start_time as string,
+        end_time: data.end_time as string,
+        total_price: Number(data.total_price ?? 0),
+        status: data.status as BookingRow["status"],
+        lock_expires_at: data.lock_expires_at as string | null,
+        confirmed_at: data.confirmed_at as string | null,
+        completed_at: data.completed_at as string | null,
+        cancelled_at: data.cancelled_at as string | null
+      };
+
+      dispatch({ type: "CONFIRM_SUCCESS", booking });
+      onBookingConfirmed?.(booking);
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : "Failed to confirm payment.";
       dispatch({ type: "CONFIRM_FAILURE", message });
