@@ -1,18 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "backend/src/app.js": {
+    "api/**/*.js": {
       "includeFiles": "backend/prisma/**"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api",
-      "destination": "/backend/src/app.js"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/backend/src/app.js"
-    }
-  ]
+  }
 }
