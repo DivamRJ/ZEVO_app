@@ -1,11 +1,11 @@
-\"use client\";
+ "use client";
 
-import Link from \"next/link\";
-import { useEffect, useMemo, useState } from \"react\";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import { PageShell } from \"@/components/zevo/page-shell\";
-import { useUser } from \"@/hooks/use-user\";
-import { createClient } from \"@/utils/supabase/client\";
+import { PageShell } from "@/components/zevo/page-shell";
+import { useUser } from "@/hooks/use-user";
+import { createClient } from "@/utils/supabase/client";
 
 type ArenaChatRoomRow = {
   id: string;

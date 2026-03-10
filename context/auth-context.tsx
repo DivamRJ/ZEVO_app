@@ -1,11 +1,11 @@
-\"use client\";
+ "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from \"react\";
-import type { Session, User as SupabaseUser } from \"@supabase/supabase-js\";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
 
-import { createClient } from \"@/utils/supabase/client\";
+import { createClient } from "@/utils/supabase/client";
 
-type ZevoUserRole = \"PLAYER\" | \"OWNER\" | \"ADMIN\";
+type ZevoUserRole = "PLAYER" | "OWNER" | "ADMIN";
 
 export type ZevoUser = {
   id: string;
@@ -40,12 +40,12 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 function mapProfileToZevoUser(authUser: SupabaseUser, profile: any): ZevoUser {
   return {
     id: authUser.id,
-    email: authUser.email ?? profile?.email ?? \"\",
-    name: profile?.display_name ?? authUser.user_metadata?.name ?? authUser.email ?? \"ZEVO User\",
-    role: (profile?.role as ZevoUserRole) ?? \"PLAYER\",
+    email: authUser.email ?? profile?.email ?? "",
+    name: profile?.display_name ?? authUser.user_metadata?.name ?? authUser.email ?? "ZEVO User",
+    role: (profile?.role as ZevoUserRole) ?? "PLAYER",
     walletBalance: Number(profile?.wallet_balance ?? 0),
     city: profile?.city ?? null,
-    skillLevel: profile?.skill_level ?? \"Beginner\",
+    skillLevel: profile?.skill_level ?? "Beginner",
     interests: Array.isArray(profile?.interests) ? profile.interests : []
   };
 }
@@ -66,21 +66,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authUser = supabaseSession.user;
 
       const { data: profile, error } = await supabase
-        .from(\"profiles\")
-        .select(\"id, email, display_name, role, wallet_balance, city, skill_level, interests\")
-        .eq(\"id\", authUser.id)
+        .from("profiles")
+        .select("id, email, display_name, role, wallet_balance, city, skill_level, interests")
+        .eq("id", authUser.id)
         .maybeSingle();
 
       if (error) {
         // If profile lookup fails, still keep basic auth identity.
         const fallbackUser: ZevoUser = {
           id: authUser.id,
-          email: authUser.email ?? \"\",
-          name: authUser.user_metadata?.name ?? authUser.email ?? \"ZEVO User\",
-          role: \"PLAYER\",
+          email: authUser.email ?? "",
+          name: authUser.user_metadata?.name ?? authUser.email ?? "ZEVO User",
+          role: "PLAYER",
           walletBalance: 0,
           city: null,
-          skillLevel: \"Beginner\",
+          skillLevel: "Beginner",
           interests: []
         };
 
@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           data: {
             name: input.name,
-            role: input.role ?? \"PLAYER\"
+            role: input.role ?? "PLAYER"
           }
         }
       });
@@ -224,7 +224,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(\"useAuth must be used within AuthProvider.\");
+    throw new Error("useAuth must be used within AuthProvider.");
   }
 
   return context;

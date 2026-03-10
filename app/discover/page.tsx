@@ -1,10 +1,10 @@
-\"use client\";
+ "use client";
 
-import Link from \"next/link\";
-import { useEffect, useMemo, useState } from \"react\";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import { PageShell } from \"@/components/zevo/page-shell\";
-import { createClient } from \"@/utils/supabase/client\";
+import { PageShell } from "@/components/zevo/page-shell";
+import { createClient } from "@/utils/supabase/client";
 
 type TurfRow = {
   id: string;
@@ -19,7 +19,7 @@ function getCity(location: string) {
   return parts[parts.length - 1] || "Unknown";
 }
 
-function getArenaDescription(turf: TurfApi) {
+function getArenaDescription(turf: TurfRow) {
   return `${turf.name} is available at ${turf.location}. Pricing starts at Rs. ${turf.price_per_hour} per hour. Select this arena to view live availability and lock a slot.`;
 }
 
@@ -124,7 +124,7 @@ export default function DiscoverPage() {
           <article key={turf.id} className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
             <button
               type="button"
-              onClick={() => setExpandedArenaId((current) => (current === turf.turf_id ? null : turf.turf_id))}
+              onClick={() => setExpandedArenaId((current) => (current === turf.id ? null : turf.id))}
               className="w-full text-left"
             >
               <h3 className="text-base font-semibold">{turf.name}</h3>
@@ -132,11 +132,11 @@ export default function DiscoverPage() {
               <p className="mt-2 text-sm text-zinc-300">Timezone: {turf.time_zone}</p>
               <p className="text-sm text-zinc-300">Price: Rs. {turf.price_per_hour}/hour</p>
               <p className="mt-2 text-xs font-semibold text-neon">
-                {expandedArenaId === turf.turf_id ? "Hide details" : "View details"}
+                {expandedArenaId === turf.id ? "Hide details" : "View details"}
               </p>
             </button>
 
-            {expandedArenaId === turf.turf_id ? (
+            {expandedArenaId === turf.id ? (
               <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
                 <p className="text-sm text-zinc-300">{getArenaDescription(turf)}</p>
                 <Link

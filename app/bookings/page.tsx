@@ -1,13 +1,13 @@
-\"use client\";
+ "use client";
 
-import { useEffect, useMemo, useState } from \"react\";
+import { useEffect, useMemo, useState } from "react";
 
-import { ProtectedRoute } from \"@/components/auth/protected-route\";
-import { AvailabilityCalendar } from \"@/components/booking/availability-calendar\";
-import { BookingForm } from \"@/components/booking/booking-form\";
-import { TurfCard } from \"@/components/booking/turf-card\";
-import { PageShell } from \"@/components/zevo/page-shell\";
-import { createClient } from \"@/utils/supabase/client\";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { AvailabilityCalendar } from "@/components/booking/availability-calendar";
+import { BookingForm } from "@/components/booking/booking-form";
+import { TurfCard } from "@/components/booking/turf-card";
+import { PageShell } from "@/components/zevo/page-shell";
+import { createClient } from "@/utils/supabase/client";
 
 export type BookingRow = {
   id: string;
@@ -16,7 +16,7 @@ export type BookingRow = {
   start_time: string;
   end_time: string;
   total_price: number;
-  status: \"PENDING\" | \"CONFIRMED\" | \"COMPLETED\" | \"CANCELLED\";
+  status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
   lock_expires_at: string | null;
   confirmed_at: string | null;
   completed_at: string | null;
@@ -36,7 +36,7 @@ export default function BookingsPage() {
   const [turfs, setTurfs] = useState<TurfRow[]>([]);
   const [selectedTurf, setSelectedTurf] = useState<TurfRow | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start_time: string; end_time: string } | null>(null);
-  const [status, setStatus] = useState(\"Loading turfs...\");
+  const [status, setStatus] = useState("Loading turfs...");
   const [latestBooking, setLatestBooking] = useState<BookingRow | null>(null);
 
   useEffect(() => {
@@ -44,10 +44,10 @@ export default function BookingsPage() {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
-          .from(\"turfs\")
-          .select(\"id, owner_id, name, location, price_per_hour, time_zone\")
-          .eq(\"is_active\", true)
-          .order(\"created_at\", { ascending: false });
+          .from("turfs")
+          .select("id, owner_id, name, location, price_per_hour, time_zone")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
 
         if (error) {
           throw error;
@@ -67,20 +67,20 @@ export default function BookingsPage() {
 
         if (rows.length > 0) {
           const requestedTurfId =
-            typeof window !== \"undefined\"
-              ? new URLSearchParams(window.location.search).get(\"turf_id\")
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("turf_id")
               : null;
           const requestedTurf = requestedTurfId
             ? rows.find((item) => item.id === requestedTurfId) || null
             : null;
 
           setSelectedTurf(requestedTurf || rows[0]);
-          setStatus(\"Select a slot and start the booking flow.\");
+          setStatus("Select a slot and start the booking flow.");
         } else {
-          setStatus(\"No turfs found in database.\");
+          setStatus("No turfs found in database.");
         }
       } catch (caughtError) {
-        const message = caughtError instanceof Error ? caughtError.message : \"Failed to load turfs.\";
+        const message = caughtError instanceof Error ? caughtError.message : "Failed to load turfs.";
         setStatus(message);
       }
     };
@@ -92,7 +92,7 @@ export default function BookingsPage() {
     if (!selectedTurf || !selectedSlot) return null;
 
     return {
-      turf_id: selectedTurf.turf_id,
+      turf_id: selectedTurf.id,
       start_time: selectedSlot.start_time,
       end_time: selectedSlot.end_time
     };
@@ -112,9 +112,9 @@ export default function BookingsPage() {
         <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {turfs.map((turf) => (
             <TurfCard
-              key={turf.turf_id}
+              key={turf.id}
               turf={turf}
-              selected={selectedTurf?.turf_id === turf.turf_id}
+              selected={selectedTurf?.id === turf.id}
               onSelect={(next) => {
                 setSelectedTurf(next);
                 setSelectedSlot(null);

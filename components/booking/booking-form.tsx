@@ -20,13 +20,13 @@ type FlowState = {
 type Action =
   | { type: "RESET" }
   | { type: "LOCK_REQUEST" }
-  | { type: "LOCK_SUCCESS"; booking: BookingApi }
-  | { type: "REHYDRATE_LOCK"; booking: BookingApi }
+  | { type: "LOCK_SUCCESS"; booking: BookingRow }
+  | { type: "REHYDRATE_LOCK"; booking: BookingRow }
   | { type: "LOCK_FAILURE"; message: string }
   | { type: "TICK" }
   | { type: "EXPIRE" }
   | { type: "CONFIRM_REQUEST" }
-  | { type: "CONFIRM_SUCCESS"; booking: BookingApi }
+  | { type: "CONFIRM_SUCCESS"; booking: BookingRow }
   | { type: "CONFIRM_FAILURE"; message: string };
 
 const initialState: FlowState = {
@@ -201,7 +201,7 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     };
 
     void hydratePendingLock();
-  }, [selectedTurf?.turf_id]);
+  }, [selectedTurf?.id]);
 
   useEffect(() => {
     if (state.status !== "LOCKED") return;
@@ -289,7 +289,7 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
 
     // Requirement sync: lock is triggered as soon as user selects a slot.
     void requestLock(selectedTurf, selectedSlot);
-  }, [selectedTurf?.turf_id, selectedSlot?.start_time, selectedSlot?.end_time, requestLock]);
+  }, [selectedTurf?.id, selectedSlot?.start_time, selectedSlot?.end_time, requestLock]);
 
   const handleLockSlot = async () => {
     if (!selectedTurf || !selectedSlot) {
@@ -362,7 +362,7 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
 
       {state.booking ? (
         <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-800/80 p-3 text-xs text-zinc-300">
-          <p>Booking ID: {state.booking.booking_id}</p>
+          <p>Booking ID: {state.booking.id}</p>
           <p>Status: {state.booking.status}</p>
           <p>Total Price: Rs. {state.booking.total_price}</p>
           <p>Lock Expires: {state.booking.lock_expires_at ?? "N/A"}</p>

@@ -1,11 +1,11 @@
-\"use client\";
+ "use client";
 
-import { useEffect, useMemo, useState } from \"react\";
+import { useEffect, useMemo, useState } from "react";
 
-import { ProtectedRoute } from \"@/components/auth/protected-route\";
-import { PageShell } from \"@/components/zevo/page-shell\";
-import { useAuth } from \"@/context/auth-context\";
-import { createClient } from \"@/utils/supabase/client\";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { PageShell } from "@/components/zevo/page-shell";
+import { useAuth } from "@/context/auth-context";
+import { createClient } from "@/utils/supabase/client";
 
 type OwnerTurfRow = {
   id: string;
@@ -19,16 +19,16 @@ type OwnerTurfRow = {
 export default function OwnerDashboardPage() {
   const { user } = useAuth();
   const [turfs, setTurfs] = useState<OwnerTurfRow[]>([]);
-  const [status, setStatus] = useState(\"Loading owner dashboard...\");
+  const [status, setStatus] = useState("Loading owner dashboard...");
 
   useEffect(() => {
     const loadTurfs = async () => {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
-          .from(\"turfs\")
-          .select(\"id, owner_id, name, location, price_per_hour, time_zone, is_active\")
-          .order(\"created_at\", { ascending: false });
+          .from("turfs")
+          .select("id, owner_id, name, location, price_per_hour, time_zone, is_active")
+          .order("created_at", { ascending: false });
 
         if (error) {
           throw error;
@@ -45,9 +45,9 @@ export default function OwnerDashboardPage() {
           })) ?? [];
 
         setTurfs(rows);
-        setStatus(\"Owner inventory synced with Supabase.\");
+        setStatus("Owner inventory synced with Supabase.");
       } catch (caughtError) {
-        const message = caughtError instanceof Error ? caughtError.message : \"Failed to load owner data.\";
+        const message = caughtError instanceof Error ? caughtError.message : "Failed to load owner data.";
         setStatus(message);
       }
     };

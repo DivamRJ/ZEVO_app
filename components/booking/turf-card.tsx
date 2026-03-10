@@ -1,6 +1,6 @@
-\"use client\";
+ "use client";
 
-import type { TurfRow } from \"@/app/bookings/page\";
+import type { TurfRow } from "@/app/bookings/page";
 
 type TurfCardProps = {
   turf: TurfRow;

@@ -1,8 +1,8 @@
-\"use client\";
+ "use client";
 
-import { useEffect, useMemo, useState } from \"react\";
+import { useEffect, useMemo, useState } from "react";
 
-import { createClient } from \"@/utils/supabase/client\";
+import { createClient } from "@/utils/supabase/client";
 
 type AvailabilityCalendarProps = {
   turf_id: string | null;

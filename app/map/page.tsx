@@ -1,9 +1,9 @@
-\"use client\";
+ "use client";
 
-import { useEffect, useMemo, useState } from \"react\";
+import { useEffect, useMemo, useState } from "react";
 
-import { PageShell } from \"@/components/zevo/page-shell\";
-import { createClient } from \"@/utils/supabase/client\";
+import { PageShell } from "@/components/zevo/page-shell";
+import { createClient } from "@/utils/supabase/client";
 
 type TurfRow = {
   id: string;
@@ -139,7 +139,7 @@ export default function MapPage() {
           </div>
           <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
             <p className="text-[11px] uppercase tracking-wide text-zinc-400">Timezone</p>
-            <p className="mt-1 text-sm text-zinc-100">{selectedTurf?.timezone || "--"}</p>
+            <p className="mt-1 text-sm text-zinc-100">{selectedTurf?.time_zone || "--"}</p>
           </div>
         </div>
       </section>
