@@ -1,13 +1,1 @@
-{
-  "/api/bookings/route": "app/api/bookings/route.js",
-  "/icon.svg/route": "app/icon.svg/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/about/page": "app/about/page.js",
-  "/bookings/page": "app/bookings/page.js",
-  "/chat/page": "app/chat/page.js",
-  "/discover/page": "app/discover/page.js",
-  "/group/page": "app/group/page.js",
-  "/map/page": "app/map/page.js",
-  "/profile/page": "app/profile/page.js",
-  "/page": "app/page.js"
-}
+{}
