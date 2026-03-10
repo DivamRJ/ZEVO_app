@@ -5,36 +5,30 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PageShell } from "@/components/zevo/page-shell";
 import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/lib/supabase/client";
 import { TURFS } from "@/lib/zevo-data";
-import { getProfile } from "@/lib/zevo-storage";
+import {
+  getArenaChatMessages,
+  getArenaChatRooms,
+  getProfile,
+  saveArenaChatMessages,
+  saveArenaChatRooms,
+  type ArenaChatRoom,
+  type ArenaRoomMessage
+} from "@/lib/zevo-storage";
 
-type ArenaChatRoom = {
-  id: string;
-  arena_id: string;
-  arena_name: string;
-  sport: string;
-  topic: string;
-  created_by_user_id: string;
-  created_by_email: string;
-  created_at: string;
-};
+const ROOMS_EVENT = "zevo-arena-rooms-updated";
+const MESSAGES_EVENT = "zevo-arena-messages-updated";
 
-type MessageRecord = {
-  id: string;
-  room_id: string;
-  user_id: string;
-  user_email: string;
-  sender_name: string;
-  text: string;
-  created_at: string;
-};
+function notify(eventName: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(eventName));
+}
 
 export default function ChatPage() {
   const { user, loading, isAuthenticated } = useUser();
 
   const [rooms, setRooms] = useState<ArenaChatRoom[]>([]);
-  const [messages, setMessages] = useState<MessageRecord[]>([]);
+  const [messages, setMessages] = useState<ArenaRoomMessage[]>([]);
   const [chatStatus, setChatStatus] = useState("Create or join an arena room to discuss plans.");
 
   const [newRoomArenaId, setNewRoomArenaId] = useState(TURFS[0].id);
@@ -48,59 +42,35 @@ export default function ChatPage() {
 
   const visibleRooms = useMemo(() => {
     if (!showInterestedOnly || !localProfile) return rooms;
-    return rooms.filter((room) => localProfile.interests.includes(room.sport as never));
+    return rooms.filter((room) => localProfile.interests.includes(room.sport));
   }, [rooms, showInterestedOnly, localProfile]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setRooms([]);
-      return;
-    }
-
-    const loadRooms = async () => {
-      const { data, error } = await supabase
-        .from("arena_chat_rooms")
-        .select("id, arena_id, arena_name, sport, topic, created_by_user_id, created_by_email, created_at")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setChatStatus(error.message);
-        return;
-      }
-
-      const nextRooms = (data ?? []) as ArenaChatRoom[];
+    const loadRooms = () => {
+      const nextRooms = getArenaChatRooms().sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       setRooms(nextRooms);
     };
 
+    if (!isAuthenticated) {
+      setRooms([]);
+      setSelectedRoomId(null);
+      return;
+    }
+
     loadRooms();
-  }, [isAuthenticated]);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
+    const onStorage = () => {
+      loadRooms();
+    };
 
-    const roomsChannel = supabase
-      .channel("arena_chat_rooms_realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "arena_chat_rooms" }, (payload) => {
-        const room = payload.new as ArenaChatRoom;
-        setRooms((current) => {
-          const exists = current.some((item) => item.id === room.id);
-          if (exists) return current;
-          return [room, ...current];
-        });
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "arena_chat_rooms" }, (payload) => {
-        const room = payload.new as ArenaChatRoom;
-        setRooms((current) => current.map((item) => (item.id === room.id ? room : item)));
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "arena_chat_rooms" }, (payload) => {
-        const deletedRoomId = String(payload.old.id);
-        setRooms((current) => current.filter((item) => item.id !== deletedRoomId));
-        setSelectedRoomId((current) => (current === deletedRoomId ? null : current));
-      })
-      .subscribe();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(ROOMS_EVENT, onStorage);
 
     return () => {
-      void supabase.removeChannel(roomsChannel);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(ROOMS_EVENT, onStorage);
     };
   }, [isAuthenticated]);
 
@@ -109,140 +79,88 @@ export default function ChatPage() {
       setSelectedRoomId(rooms[0].id);
       return;
     }
+
     if (selectedRoomId && !rooms.some((room) => room.id === selectedRoomId)) {
       setSelectedRoomId(rooms[0]?.id ?? null);
     }
   }, [rooms, selectedRoomId]);
 
   useEffect(() => {
+    const loadMessages = () => {
+      if (!selectedRoomId) {
+        setMessages([]);
+        return;
+      }
+
+      const nextMessages = getArenaChatMessages()
+        .filter((message) => message.roomId === selectedRoomId)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+      setMessages(nextMessages);
+    };
+
     if (!isAuthenticated || !selectedRoomId) {
       setMessages([]);
       return;
     }
 
-    const loadMessages = async () => {
-      const { data, error } = await supabase
-        .from("messages")
-        .select("id, room_id, user_id, user_email, sender_name, text, created_at")
-        .eq("room_id", selectedRoomId)
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        setChatStatus(error.message);
-        return;
-      }
-
-      setMessages((data ?? []) as MessageRecord[]);
-    };
-
     loadMessages();
 
-    const messagesChannel = supabase
-      .channel(`room_messages_realtime_${selectedRoomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${selectedRoomId}`
-        },
-        (payload) => {
-          const message = payload.new as MessageRecord;
-          setMessages((current) => {
-            const exists = current.some((item) => item.id === message.id);
-            if (exists) return current;
-            return [...current, message];
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${selectedRoomId}`
-        },
-        (payload) => {
-          const message = payload.new as MessageRecord;
-          setMessages((current) => current.map((item) => (item.id === message.id ? message : item)));
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${selectedRoomId}`
-        },
-        (payload) => {
-          const deletedMessageId = String(payload.old.id);
-          setMessages((current) => current.filter((item) => item.id !== deletedMessageId));
-        }
-      )
-      .subscribe();
+    const onStorage = () => {
+      loadMessages();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(MESSAGES_EVENT, onStorage);
 
     return () => {
-      void supabase.removeChannel(messagesChannel);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(MESSAGES_EVENT, onStorage);
     };
   }, [isAuthenticated, selectedRoomId]);
 
-  const createArenaChatRoom = async () => {
+  const createArenaChatRoom = () => {
     if (!user) return;
 
     const arena = TURFS.find((item) => item.id === newRoomArenaId) ?? TURFS[0];
     const topic = newRoomTopic.trim() || `Discussion for ${arena.name}`;
 
-    const { data, error } = await supabase
-      .from("arena_chat_rooms")
-      .insert({
-        arena_id: arena.id,
-        arena_name: arena.name,
-        sport: arena.sport,
-        topic,
-        created_by_user_id: user.id,
-        created_by_email: user.email ?? "unknown@zevo.app"
-      })
-      .select("id, arena_id, arena_name, sport, topic, created_by_user_id, created_by_email, created_at")
-      .single();
+    const nextRoom: ArenaChatRoom = {
+      id: crypto.randomUUID(),
+      arenaId: arena.id,
+      arenaName: arena.name,
+      sport: arena.sport,
+      topic,
+      createdBy: user.email,
+      createdAt: new Date().toISOString()
+    };
 
-    if (error) {
-      setChatStatus(error.message);
-      return;
-    }
+    const nextRooms = [nextRoom, ...getArenaChatRooms()];
+    saveArenaChatRooms(nextRooms);
+    notify(ROOMS_EVENT);
 
-    const room = data as ArenaChatRoom;
-    setSelectedRoomId(room.id);
+    setRooms(nextRooms);
+    setSelectedRoomId(nextRoom.id);
     setNewRoomTopic("");
     setChatStatus("Arena room created. You can start discussion now.");
   };
 
-  const sendRoomMessage = async () => {
+  const sendRoomMessage = () => {
     if (!user || !selectedRoomId || !roomMessageInput.trim()) return;
 
-    const senderName =
-      (user.user_metadata?.username as string | undefined) ??
-      (user.user_metadata?.full_name as string | undefined) ??
-      user.email ??
-      "Zevo User";
+    const nextMessage: ArenaRoomMessage = {
+      id: crypto.randomUUID(),
+      roomId: selectedRoomId,
+      senderName: user.name || user.email,
+      text: roomMessageInput.trim(),
+      createdAt: new Date().toISOString()
+    };
 
-    const { error } = await supabase
-      .from("messages")
-      .insert({
-        room_id: selectedRoomId,
-        user_id: user.id,
-        user_email: user.email ?? "unknown@zevo.app",
-        sender_name: senderName,
-        text: roomMessageInput.trim()
-      });
+    const allMessages = [...getArenaChatMessages(), nextMessage];
+    saveArenaChatMessages(allMessages);
+    notify(MESSAGES_EVENT);
 
-    if (error) {
-      setChatStatus(error.message);
-      return;
-    }
-
+    setMessages((current) => [...current, nextMessage]);
     setRoomMessageInput("");
   };
 
@@ -348,7 +266,7 @@ export default function ChatPage() {
               <p className="text-sm text-zinc-400">No chat rooms found.</p>
             ) : (
               visibleRooms.map((room) => {
-                const interested = localProfile?.interests.includes(room.sport as never);
+                const interested = localProfile?.interests.includes(room.sport);
                 return (
                   <button
                     key={room.id}
@@ -360,9 +278,11 @@ export default function ChatPage() {
                         : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-600"
                     }`}
                   >
-                    <p className="font-semibold">{room.arena_name}</p>
-                    <p className="text-xs text-zinc-400">{room.sport} • {room.topic}</p>
-                    <p className="text-[11px] text-zinc-500">Created by {room.created_by_email}</p>
+                    <p className="font-semibold">{room.arenaName}</p>
+                    <p className="text-xs text-zinc-400">
+                      {room.sport} • {room.topic}
+                    </p>
+                    <p className="text-[11px] text-zinc-500">Created by {room.createdBy}</p>
                     {interested ? (
                       <p className="mt-1 inline-flex rounded-full border border-neon/70 bg-neon/10 px-2 py-0.5 text-[10px] font-semibold text-neon">
                         Matches your interests
@@ -387,8 +307,8 @@ export default function ChatPage() {
                 ) : (
                   messages.map((message) => (
                     <div key={message.id} className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-2 text-sm">
-                      <p className="font-semibold">{message.sender_name}</p>
-                      <p className="text-xs text-zinc-500">{new Date(message.created_at).toLocaleString()}</p>
+                      <p className="font-semibold">{message.senderName}</p>
+                      <p className="text-xs text-zinc-500">{new Date(message.createdAt).toLocaleString()}</p>
                       <p className="mt-1">{message.text}</p>
                     </div>
                   ))

@@ -1,150 +1,111 @@
 "use client";
 
-import { Suspense } from "react";
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { AvailabilityCalendar } from "@/components/booking/availability-calendar";
+import { BookingForm } from "@/components/booking/booking-form";
+import { TurfCard } from "@/components/booking/turf-card";
 import { PageShell } from "@/components/zevo/page-shell";
-import { TURFS } from "@/lib/zevo-data";
+import { getTurfs, type BookingApi, type TurfApi } from "@/lib/api-client";
 
-function BookingContent() {
-  const params = useSearchParams();
-  const [status, setStatus] = useState("Complete your details to continue booking.");
-  const [bookerEmail, setBookerEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [selectedArenaId, setSelectedArenaId] = useState<string>(() => {
-    const arenaFromQuery = params.get("arena");
-    if (!arenaFromQuery) return TURFS[0].id;
-    const matched = TURFS.find((arena) => arena.name.toLowerCase() === arenaFromQuery.toLowerCase());
-    return matched?.id ?? TURFS[0].id;
-  });
+export default function BookingsPage() {
+  const [turfs, setTurfs] = useState<TurfApi[]>([]);
+  const [selectedTurf, setSelectedTurf] = useState<TurfApi | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ start_time: string; end_time: string } | null>(null);
+  const [status, setStatus] = useState("Loading turfs...");
+  const [latestBooking, setLatestBooking] = useState<BookingApi | null>(null);
 
-  const selectedArena = useMemo(
-    () => TURFS.find((arena) => arena.id === selectedArenaId) ?? TURFS[0],
-    [selectedArenaId]
-  );
+  useEffect(() => {
+    const loadTurfs = async () => {
+      try {
+        const payload = await getTurfs();
+        setTurfs(payload);
 
-  const bookingInfo = useMemo(() => {
-    return {
-      arena: selectedArena.name,
-      sport: selectedArena.format ?? selectedArena.sport,
-      location: selectedArena.location,
-      price: selectedArena.price
-    };
-  }, [selectedArena]);
-
-  const confirmBooking = async () => {
-    const cleanEmail = bookerEmail.trim();
-    if (!cleanEmail) {
-      setStatus("Please enter your email before confirming booking.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setStatus("Submitting booking...");
-
-      const response = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookerEmail: cleanEmail,
-          booking: bookingInfo
-        })
-      });
-
-      const result = (await response.json()) as { success?: boolean; message?: string; error?: string };
-      if (!response.ok) {
-        setStatus(result.error ?? "Booking failed. Please try again.");
-        setSubmitting(false);
-        return;
+        if (payload.length > 0) {
+          setSelectedTurf(payload[0]);
+          setStatus("Select a slot and start the booking flow.");
+        } else {
+          setStatus("No turfs found from backend.");
+        }
+      } catch (caughtError) {
+        const message = caughtError instanceof Error ? caughtError.message : "Failed to load turfs.";
+        setStatus(message);
       }
+    };
 
-      setStatus(result.message ?? "Booking request submitted and emailed.");
-      setSubmitting(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Booking failed. Please try again.";
-      setStatus(message);
-      setSubmitting(false);
-    }
-  };
+    void loadTurfs();
+  }, []);
+
+  const bookingPayloadPreview = useMemo(() => {
+    if (!selectedTurf || !selectedSlot) return null;
+
+    return {
+      turf_id: selectedTurf.turf_id,
+      start_time: selectedSlot.start_time,
+      end_time: selectedSlot.end_time
+    };
+  }, [selectedTurf, selectedSlot]);
 
   return (
     <PageShell>
-      <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
-        <h1 className="text-3xl font-black">Bookings</h1>
-        <p className="mt-2 text-sm text-zinc-400">Review arena details and proceed to confirm your booking.</p>
-        <div className="mt-4">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Select Arena</label>
-          <select
-            value={selectedArenaId}
-            onChange={(event) => setSelectedArenaId(event.target.value)}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
-          >
-            {TURFS.map((arena) => (
-              <option key={arena.id} value={arena.id}>
-                {arena.name} - {arena.location}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mt-4">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-zinc-400">Your Email</label>
-          <input
-            value={bookerEmail}
-            onChange={(event) => setBookerEmail(event.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
+      <ProtectedRoute>
+        <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
+          <h1 className="text-3xl font-black">My Bookings</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            End-to-end booking flow synced with backend lock/payment lifecycle.
+          </p>
+          <p className="mt-3 text-xs text-zinc-300">{status}</p>
+        </section>
+
+        <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {turfs.map((turf) => (
+            <TurfCard
+              key={turf.turf_id}
+              turf={turf}
+              selected={selectedTurf?.turf_id === turf.turf_id}
+              onSelect={(next) => {
+                setSelectedTurf(next);
+                setSelectedSlot(null);
+                setLatestBooking(null);
+              }}
+            />
+          ))}
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <AvailabilityCalendar
+            turf_id={selectedTurf?.turf_id ?? null}
+            selectedSlot={selectedSlot}
+            onSelectSlot={(slot) => {
+              setSelectedSlot(slot);
+              setLatestBooking(null);
+            }}
           />
-        </div>
-      </section>
 
-      <section className="mb-4 grid gap-3 md:grid-cols-3">
-        {[
-          { label: "Step 1", detail: "Choose your arena and slot preference." },
-          { label: "Step 2", detail: "Confirm contact email for booking updates." },
-          { label: "Step 3", detail: "Receive booking confirmation by email." }
-        ].map((step) => (
-          <article key={step.label} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neon">{step.label}</p>
-            <p className="mt-2 text-sm text-zinc-300">{step.detail}</p>
+          <BookingForm
+            selectedTurf={selectedTurf}
+            selectedSlot={selectedSlot}
+            onBookingConfirmed={(booking) => setLatestBooking(booking)}
+          />
+        </section>
+
+        <section className="mt-6 grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+            <h2 className="text-lg font-semibold">API Payload Preview</h2>
+            <pre className="mt-3 overflow-x-auto rounded-xl bg-zinc-950 p-3 text-xs text-zinc-300">
+              {JSON.stringify(bookingPayloadPreview, null, 2)}
+            </pre>
           </article>
-        ))}
-      </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
-          <h2 className="text-lg font-semibold">Selected Arena</h2>
-          <div className="mt-3 space-y-1 text-sm text-zinc-300">
-            <p>Arena: {bookingInfo.arena}</p>
-            <p>Sport: {bookingInfo.sport}</p>
-            <p>Location: {bookingInfo.location}</p>
-            <p>Price: {bookingInfo.price}</p>
-          </div>
-        </article>
-
-        <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
-          <h2 className="text-lg font-semibold">Booking Action</h2>
-          <p className="mt-2 text-sm text-zinc-400">{status}</p>
-          <button
-            type="button"
-            onClick={confirmBooking}
-            disabled={submitting}
-            className="mt-4 rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900 hover:brightness-95 disabled:opacity-60"
-          >
-            {submitting ? "Sending..." : "Confirm Booking"}
-          </button>
-        </article>
-      </section>
+          <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
+            <h2 className="text-lg font-semibold">Latest Confirmed Booking</h2>
+            <pre className="mt-3 overflow-x-auto rounded-xl bg-zinc-950 p-3 text-xs text-zinc-300">
+              {JSON.stringify(latestBooking, null, 2)}
+            </pre>
+          </article>
+        </section>
+      </ProtectedRoute>
     </PageShell>
-  );
-}
-
-export default function BookingsPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <BookingContent />
-    </Suspense>
   );
 }

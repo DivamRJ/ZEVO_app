@@ -3,9 +3,22 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
+const weeklyHours = {
+  MONDAY: { open: '06:00', close: '23:00', isClosed: false },
+  TUESDAY: { open: '06:00', close: '23:00', isClosed: false },
+  WEDNESDAY: { open: '06:00', close: '23:00', isClosed: false },
+  THURSDAY: { open: '06:00', close: '23:00', isClosed: false },
+  FRIDAY: { open: '06:00', close: '23:30', isClosed: false },
+  SATURDAY: { open: '05:30', close: '23:30', isClosed: false },
+  SUNDAY: { open: '05:30', close: '22:30', isClosed: false }
+};
+
 async function main() {
-  const playerPasswordHash = await bcrypt.hash('Player@123', 10);
-  const ownerPasswordHash = await bcrypt.hash('Owner@123', 10);
+  const [playerPasswordHash, ownerPasswordHash, adminPasswordHash] = await Promise.all([
+    bcrypt.hash('Player@123', 10),
+    bcrypt.hash('Owner@123', 10),
+    bcrypt.hash('Admin@123', 10)
+  ]);
 
   const owner = await prisma.user.upsert({
     where: { email: 'owner@zevo.demo' },
@@ -41,20 +54,39 @@ async function main() {
     }
   });
 
+  await prisma.user.upsert({
+    where: { email: 'admin@zevo.demo' },
+    update: {
+      name: 'Demo Admin',
+      role: 'ADMIN',
+      passwordHash: adminPasswordHash,
+      walletBalance: '0.00'
+    },
+    create: {
+      name: 'Demo Admin',
+      email: 'admin@zevo.demo',
+      role: 'ADMIN',
+      passwordHash: adminPasswordHash,
+      walletBalance: '0.00'
+    }
+  });
+
   await prisma.turf.upsert({
     where: { id: '11111111-1111-1111-1111-111111111111' },
     update: {
       ownerId: owner.id,
-      hourlyRate: '500.00',
+      pricePerHour: '500.00',
       location: 'Andheri West, Mumbai',
-      operatingHours: { start: '06:00', end: '23:00' }
+      timeZone: 'Asia/Kolkata',
+      operatingHours: weeklyHours
     },
     create: {
       id: '11111111-1111-1111-1111-111111111111',
       ownerId: owner.id,
-      hourlyRate: '500.00',
+      pricePerHour: '500.00',
       location: 'Andheri West, Mumbai',
-      operatingHours: { start: '06:00', end: '23:00' }
+      timeZone: 'Asia/Kolkata',
+      operatingHours: weeklyHours
     }
   });
 }

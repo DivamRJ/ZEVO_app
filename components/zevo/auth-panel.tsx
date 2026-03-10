@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useUser } from "@/hooks/use-user";
-import { supabase } from "@/lib/supabase/client";
+import { useAuth } from "@/context/auth-context";
 
 type AuthPanelProps = {
   title?: string;
@@ -18,7 +17,9 @@ export function AuthPanel({
   className = ""
 }: AuthPanelProps) {
   const router = useRouter();
-  const { user, loading } = useUser();
+  const { user, loading, loginUser, signupUser, logoutUser } = useAuth();
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("Create an account or log in to continue.");
@@ -26,16 +27,52 @@ export function AuthPanel({
   const [redirectOnSession, setRedirectOnSession] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) return;
-    if (!redirectOnSession) return;
+    if (loading || !user || !redirectOnSession) return;
     router.push("/chat");
     router.refresh();
   }, [loading, redirectOnSession, user, router]);
 
+  const getAuthErrorMessage = (caughtError: unknown) => {
+    const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
+
+    if (message.toLowerCase().includes("failed to fetch")) {
+      return "Unable to reach backend auth service. Ensure backend is running and NEXT_PUBLIC_BACKEND_URL is correct.";
+    }
+
+    return message;
+  };
+
   const onSignUp = async () => {
     if (submitting) return;
+
+    const cleanName = name.trim();
     const cleanEmail = email.trim();
+
+    if (!cleanName || !cleanEmail || !password) {
+      setStatus("Name, email, and password are required.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setRedirectOnSession(true);
+      await signupUser({ name: cleanName, email: cleanEmail, password, role: "PLAYER" });
+      setStatus("Account created. Redirecting to chat...");
+      router.push("/chat");
+      router.refresh();
+    } catch (caughtError) {
+      setStatus(getAuthErrorMessage(caughtError));
+      setRedirectOnSession(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onLogIn = async () => {
+    if (submitting) return;
+
+    const cleanEmail = email.trim();
+
     if (!cleanEmail || !password) {
       setStatus("Email and password are required.");
       return;
@@ -44,105 +81,24 @@ export function AuthPanel({
     try {
       setSubmitting(true);
       setRedirectOnSession(true);
-      console.log("Attempting signup for:", cleanEmail);
-      const { data, error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password
-      });
-
-      if (error) {
-        console.log("Supabase signup error:", error.message, error);
-        if (error.message.toLowerCase().includes("email rate limit exceeded")) {
-          setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
-          setRedirectOnSession(false);
-          setSubmitting(false);
-          return;
-        }
-        setStatus(error.message);
-        setRedirectOnSession(false);
-        setSubmitting(false);
-        return;
-      }
-
-      if (data.user) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password
-        });
-
-        if (signInError) {
-          console.log("Supabase auto-login after signup error:", signInError.message, signInError);
-          if (signInError.message.toLowerCase().includes("email rate limit exceeded")) {
-            setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
-            setRedirectOnSession(false);
-            setSubmitting(false);
-            return;
-          }
-          setStatus(signInError.message);
-          setRedirectOnSession(false);
-          setSubmitting(false);
-          return;
-        }
-      }
-
-      setStatus("Welcome to Zevo!");
-      setSubmitting(false);
+      await loginUser({ email: cleanEmail, password });
+      setStatus("Logged in. Redirecting to chat...");
       router.push("/chat");
       router.refresh();
     } catch (caughtError) {
-      const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-      console.log("Supabase signup catch error:", message, caughtError);
-      if (message.toLowerCase().includes("email rate limit exceeded")) {
-        setStatus("Account created! Please wait 5 minutes before your first login due to security limits.");
-        setRedirectOnSession(false);
-        setSubmitting(false);
-        return;
-      }
-      setStatus(message);
+      setStatus(getAuthErrorMessage(caughtError));
       setRedirectOnSession(false);
+    } finally {
       setSubmitting(false);
     }
   };
 
-  const onLogIn = async () => {
+  const onLogOut = () => {
     if (submitting) return;
-    const cleanEmail = email.trim();
-    if (!cleanEmail || !password) {
-      setStatus("Email and password are required.");
-      return;
-    }
-
-    setSubmitting(true);
-    setRedirectOnSession(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password
-    });
-    setSubmitting(false);
-
-    if (error) {
-      setStatus(error.message);
-      setRedirectOnSession(false);
-      return;
-    }
-
-    router.push("/chat");
-    router.refresh();
-  };
-
-  const onLogOut = async () => {
-    if (submitting) return;
-    setSubmitting(true);
     setRedirectOnSession(false);
-    const { error } = await supabase.auth.signOut();
-    setSubmitting(false);
-
-    if (error) {
-      setStatus(error.message);
-      return;
-    }
-
+    logoutUser();
     setStatus("Logged out successfully.");
+    router.refresh();
   };
 
   return (
@@ -150,10 +106,17 @@ export function AuthPanel({
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-zinc-400">{subtitle}</p>
       <p className="mt-2 text-xs text-zinc-300">
-        {loading ? "Checking session..." : user ? `Logged in as ${user.email ?? "ZEVO user"}` : status}
+        {loading ? "Checking session..." : user ? `Logged in as ${user.email}` : status}
       </p>
 
       <div className="mt-3 space-y-3">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          type="text"
+          placeholder="Name (for sign up)"
+          className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-neon"
+        />
         <input
           value={email}
           onChange={(event) => setEmail(event.target.value)}

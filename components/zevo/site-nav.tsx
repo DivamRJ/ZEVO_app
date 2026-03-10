@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
+import { useAuth } from "@/context/auth-context";
 import { getProfile } from "@/lib/zevo-storage";
 
 const baseLinks = [
   { href: "/", label: "Intro" },
   { href: "/discover", label: "Discover" },
-  { href: "/bookings", label: "Bookings" },
+  { href: "/bookings", label: "My Bookings" },
   { href: "/chat", label: "Public Chat" },
   { href: "/map", label: "Map" },
   { href: "/profile", label: "Profile" },
@@ -19,6 +20,7 @@ const baseLinks = [
 
 export function SiteNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [hasProfile, setHasProfile] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -41,7 +43,11 @@ export function SiteNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const links = hasProfile ? [...baseLinks, { href: "/group", label: "Group" }] : baseLinks;
+  const withGroup = hasProfile ? [...baseLinks, { href: "/group", label: "Group" }] : baseLinks;
+  const links =
+    user?.role === "OWNER" || user?.role === "ADMIN"
+      ? [...withGroup, { href: "/owner-dashboard", label: "Owner Dashboard" }]
+      : withGroup;
 
   return (
     <motion.header

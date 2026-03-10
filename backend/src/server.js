@@ -1,6 +1,9 @@
 const app = require('./app');
 const env = require('./config/env');
 const prisma = require('./db/prisma');
+const { registerOwnerNotificationListener } = require('./services/notification.service');
+
+registerOwnerNotificationListener();
 
 const server = app.listen(env.port, () => {
   console.log(`Zevo backend running on port ${env.port}`);
@@ -14,5 +17,10 @@ async function shutdown(signal) {
   });
 }
 
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});

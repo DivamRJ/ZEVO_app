@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
-const { UnauthorizedError } = require('../utils/errors');
+const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
 
 function authenticateJwt(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -23,4 +23,21 @@ function authenticateJwt(req, res, next) {
   }
 }
 
-module.exports = authenticateJwt;
+function requireRoles(roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(new UnauthorizedError('Authentication required.'));
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return next(new ForbiddenError('You do not have permission to perform this action.'));
+    }
+
+    return next();
+  };
+}
+
+module.exports = {
+  authenticateJwt,
+  requireRoles
+};
