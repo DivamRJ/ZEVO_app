@@ -23,7 +23,15 @@ export default function BookingsPage() {
         setTurfs(payload);
 
         if (payload.length > 0) {
-          setSelectedTurf(payload[0]);
+          const requestedTurfId =
+            typeof window !== "undefined"
+              ? new URLSearchParams(window.location.search).get("turf_id")
+              : null;
+          const requestedTurf = requestedTurfId
+            ? payload.find((item) => item.turf_id === requestedTurfId) || null
+            : null;
+
+          setSelectedTurf(requestedTurf || payload[0]);
           setStatus("Select a slot and start the booking flow.");
         } else {
           setStatus("No turfs found from backend.");

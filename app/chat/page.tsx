@@ -5,11 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { PageShell } from "@/components/zevo/page-shell";
 import { useUser } from "@/hooks/use-user";
-import { TURFS } from "@/lib/zevo-data";
+import { getTurfs, type TurfApi } from "@/lib/api-client";
 import {
   getArenaChatMessages,
   getArenaChatRooms,
-  getProfile,
   saveArenaChatMessages,
   saveArenaChatRooms,
   type ArenaChatRoom,
@@ -29,21 +28,44 @@ export default function ChatPage() {
 
   const [rooms, setRooms] = useState<ArenaChatRoom[]>([]);
   const [messages, setMessages] = useState<ArenaRoomMessage[]>([]);
+  const [turfs, setTurfs] = useState<TurfApi[]>([]);
   const [chatStatus, setChatStatus] = useState("Create or join an arena room to discuss plans.");
 
-  const [newRoomArenaId, setNewRoomArenaId] = useState(TURFS[0].id);
+  const [newRoomArenaId, setNewRoomArenaId] = useState("");
   const [newRoomTopic, setNewRoomTopic] = useState("");
 
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [roomMessageInput, setRoomMessageInput] = useState("");
   const [showInterestedOnly, setShowInterestedOnly] = useState(false);
 
-  const localProfile = useMemo(() => getProfile(), []);
+  const userInterests = user?.interests || [];
 
   const visibleRooms = useMemo(() => {
-    if (!showInterestedOnly || !localProfile) return rooms;
-    return rooms.filter((room) => localProfile.interests.includes(room.sport));
-  }, [rooms, showInterestedOnly, localProfile]);
+    if (!showInterestedOnly || userInterests.length === 0) return rooms;
+    return rooms.filter((room) => userInterests.includes(room.sport));
+  }, [rooms, showInterestedOnly, userInterests]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTurfs([]);
+      setNewRoomArenaId("");
+      return;
+    }
+
+    const loadTurfs = async () => {
+      try {
+        const payload = await getTurfs();
+        setTurfs(payload);
+        if (payload.length) {
+          setNewRoomArenaId((current) => current || payload[0].turf_id);
+        }
+      } catch {
+        setTurfs([]);
+      }
+    };
+
+    void loadTurfs();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const loadRooms = () => {
@@ -120,16 +142,16 @@ export default function ChatPage() {
   }, [isAuthenticated, selectedRoomId]);
 
   const createArenaChatRoom = () => {
-    if (!user) return;
+    if (!user || turfs.length === 0) return;
 
-    const arena = TURFS.find((item) => item.id === newRoomArenaId) ?? TURFS[0];
+    const arena = turfs.find((item) => item.turf_id === newRoomArenaId) ?? turfs[0];
     const topic = newRoomTopic.trim() || `Discussion for ${arena.name}`;
 
     const nextRoom: ArenaChatRoom = {
       id: crypto.randomUUID(),
-      arenaId: arena.id,
+      arenaId: arena.turf_id,
       arenaName: arena.name,
-      sport: arena.sport,
+      sport: "General",
       topic,
       createdBy: user.email,
       createdAt: new Date().toISOString()
@@ -222,9 +244,9 @@ export default function ChatPage() {
             onChange={(e) => setNewRoomArenaId(e.target.value)}
             className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100"
           >
-            {TURFS.map((arena) => (
-              <option key={arena.id} value={arena.id}>
-                {arena.name} - {arena.sport}
+            {turfs.map((arena) => (
+              <option key={arena.turf_id} value={arena.turf_id}>
+                {arena.name} - {arena.location}
               </option>
             ))}
           </select>
@@ -266,7 +288,7 @@ export default function ChatPage() {
               <p className="text-sm text-zinc-400">No chat rooms found.</p>
             ) : (
               visibleRooms.map((room) => {
-                const interested = localProfile?.interests.includes(room.sport);
+                const interested = userInterests.includes(room.sport);
                 return (
                   <button
                     key={room.id}

@@ -13,7 +13,19 @@ const errorHandler = require('./middleware/error-handler.middleware');
 const app = express();
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', env.frontendUrl);
+  const requestOrigin = req.headers.origin?.replace(/\/$/, '');
+
+  if (requestOrigin && requestOrigin !== env.frontendUrl) {
+    return res.status(403).json({
+      error: `CORS blocked for origin ${requestOrigin}. Allowed origin is ${env.frontendUrl}.`
+    });
+  }
+
+  if (requestOrigin === env.frontendUrl) {
+    res.header('Access-Control-Allow-Origin', env.frontendUrl);
+    res.header('Vary', 'Origin');
+  }
+
   res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 

@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 import { useAuth } from "@/context/auth-context";
-import { getProfile } from "@/lib/zevo-storage";
 
 const baseLinks = [
   { href: "/", label: "Intro" },
@@ -21,20 +20,7 @@ const baseLinks = [
 export function SiteNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const [hasProfile, setHasProfile] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const refresh = () => setHasProfile(Boolean(getProfile()));
-    refresh();
-
-    window.addEventListener("storage", refresh);
-    window.addEventListener("zevo-profile-updated", refresh);
-    return () => {
-      window.removeEventListener("storage", refresh);
-      window.removeEventListener("zevo-profile-updated", refresh);
-    };
-  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 18);
@@ -42,6 +28,11 @@ export function SiteNav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const hasProfile = useMemo(() => {
+    if (!user) return false;
+    return Boolean(user.city || user.interests.length > 0 || user.skillLevel);
+  }, [user]);
 
   const withGroup = hasProfile ? [...baseLinks, { href: "/group", label: "Group" }] : baseLinks;
   const links =

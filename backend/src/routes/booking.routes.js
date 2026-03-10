@@ -13,6 +13,7 @@ const {
 const router = express.Router();
 
 router.get('/available-slots', validate(availableSlotsQuerySchema, 'query'), bookingController.availableSlots);
+router.get('/active', authenticateJwt, bookingController.activeBookings);
 
 router.post('/lock', authenticateJwt, validate(initiateBookingSchema), bookingController.initiateBooking);
 router.post('/initiate', authenticateJwt, validate(initiateBookingSchema), bookingController.initiateBooking);

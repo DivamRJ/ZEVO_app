@@ -118,6 +118,24 @@ function findActiveBookingsForWindow({ turfId, windowStart, windowEnd, now }, tx
   });
 }
 
+function findActiveByUser({ userId, now }, tx = prisma) {
+  return tx.booking.findMany({
+    where: {
+      userId,
+      OR: [
+        { status: 'CONFIRMED' },
+        {
+          status: 'PENDING',
+          lockExpiresAt: { gt: now }
+        }
+      ]
+    },
+    orderBy: {
+      startTime: 'asc'
+    }
+  });
+}
+
 module.exports = {
   create,
   findById,
@@ -126,5 +144,6 @@ module.exports = {
   cancelExpiredPendingForTurf,
   findOverlappingActiveForTurf,
   findUserConfirmedOverlap,
-  findActiveBookingsForWindow
+  findActiveBookingsForWindow,
+  findActiveByUser
 };

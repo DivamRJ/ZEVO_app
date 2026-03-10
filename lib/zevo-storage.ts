@@ -1,10 +1,8 @@
-import type { Sport } from "@/lib/zevo-data";
-
 export type Profile = {
   name: string;
   city: string;
   skillLevel: "Beginner" | "Intermediate" | "Advanced";
-  interests: Sport[];
+  interests: string[];
 };
 
 export type StoredProfile = Profile & {
@@ -34,7 +32,7 @@ export type ArenaChatRoom = {
   id: string;
   arenaId: string;
   arenaName: string;
-  sport: Sport;
+  sport: string;
   topic: string;
   createdBy: string;
   createdAt: string;

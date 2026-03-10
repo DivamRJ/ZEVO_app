@@ -23,16 +23,23 @@ function signToken(user) {
   );
 }
 
+function toPublicUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    walletBalance: Number(user.walletBalance),
+    city: user.city || null,
+    skillLevel: user.skillLevel,
+    interests: Array.isArray(user.interests) ? user.interests : []
+  };
+}
+
 function toAuthResponse(user) {
   return {
     token: signToken(user),
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      walletBalance: Number(user.walletBalance)
-    }
+    user: toPublicUser(user)
   };
 }
 
@@ -64,7 +71,9 @@ async function signup({ name, email, password, role }) {
     email: normalizedEmail,
     passwordHash,
     role: role || 'PLAYER',
-    walletBalance: '1000.00'
+    walletBalance: '1000.00',
+    skillLevel: 'Beginner',
+    interests: []
   });
 
   return toAuthResponse(user);
@@ -98,17 +107,58 @@ async function getCurrentUser(userId) {
     throw new NotFoundError('User not found.');
   }
 
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    walletBalance: Number(user.walletBalance)
-  };
+  return toPublicUser(user);
+}
+
+function normalizeInterests(interests) {
+  if (!Array.isArray(interests)) {
+    return [];
+  }
+
+  const normalized = interests
+    .map((interest) => String(interest || '').trim())
+    .filter(Boolean)
+    .slice(0, 20);
+
+  return Array.from(new Set(normalized));
+}
+
+async function updateProfile({ userId, city, skillLevel, interests }) {
+  const user = await userModel.findById(userId);
+
+  if (!user) {
+    throw new NotFoundError('User not found.');
+  }
+
+  const updated = await userModel.updateById(userId, {
+    city: city?.trim() || null,
+    skillLevel: skillLevel.trim(),
+    interests: normalizeInterests(interests)
+  });
+
+  return toPublicUser(updated);
+}
+
+async function topupWallet({ userId, amount }) {
+  if (typeof amount !== 'number' || Number.isNaN(amount) || amount <= 0) {
+    throw new ValidationError('amount must be a positive number.');
+  }
+
+  const roundedAmount = Number(amount.toFixed(2));
+  const user = await userModel.findById(userId);
+
+  if (!user) {
+    throw new NotFoundError('User not found.');
+  }
+
+  const updated = await userModel.incrementWallet(userId, roundedAmount);
+  return toPublicUser(updated);
 }
 
 module.exports = {
   signup,
   login,
-  getCurrentUser
+  getCurrentUser,
+  updateProfile,
+  topupWallet
 };

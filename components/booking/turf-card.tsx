@@ -19,7 +19,8 @@ export function TurfCard({ turf, selected, onSelect }: TurfCardProps) {
           : "border-zinc-800 bg-zinc-900/70 hover:border-zinc-600"
       }`}
     >
-      <p className="text-sm font-semibold text-zinc-100">{turf.location}</p>
+      <p className="text-sm font-semibold text-zinc-100">{turf.name}</p>
+      <p className="mt-1 text-xs text-zinc-400">{turf.location}</p>
       <p className="mt-1 text-xs text-zinc-400">Turf ID: {turf.turf_id}</p>
       <p className="mt-2 text-sm text-zinc-300">Price/hour: Rs. {turf.price_per_hour}</p>
       <p className="text-xs text-zinc-500">Timezone: {turf.timezone}</p>

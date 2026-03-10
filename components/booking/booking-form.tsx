@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useReducer } from "react";
 
-import { confirmBookingPayment, lockBooking, type BookingApi, type TurfApi } from "@/lib/api-client";
+import {
+  confirmBookingPayment,
+  getActiveBookings,
+  lockBooking,
+  type BookingApi,
+  type TurfApi
+} from "@/lib/api-client";
 
 type Slot = {
   start_time: string;
@@ -20,6 +26,7 @@ type Action =
   | { type: "RESET" }
   | { type: "LOCK_REQUEST" }
   | { type: "LOCK_SUCCESS"; booking: BookingApi }
+  | { type: "REHYDRATE_LOCK"; booking: BookingApi }
   | { type: "LOCK_FAILURE"; message: string }
   | { type: "TICK" }
   | { type: "EXPIRE" }
@@ -57,6 +64,14 @@ function reducer(state: FlowState, action: Action): FlowState {
         ...state,
         status: "LOCKED",
         message: "Slot locked. Complete payment before timer ends.",
+        booking: action.booking,
+        countdownSeconds: secondsUntil(action.booking.lock_expires_at)
+      };
+    case "REHYDRATE_LOCK":
+      return {
+        ...state,
+        status: "LOCKED",
+        message: "Recovered an active 10-minute lock from backend.",
         booking: action.booking,
         countdownSeconds: secondsUntil(action.booking.lock_expires_at)
       };
@@ -145,6 +160,31 @@ type BookingFormProps = {
 
 export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: BookingFormProps) {
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  useEffect(() => {
+    if (!selectedTurf) return;
+
+    const hydratePendingLock = async () => {
+      try {
+        const bookings = await getActiveBookings();
+        const pending = bookings.find(
+          (booking) =>
+            booking.turf_id === selectedTurf.turf_id &&
+            booking.status === "PENDING" &&
+            Boolean(booking.lock_expires_at) &&
+            new Date(booking.lock_expires_at as string).getTime() > Date.now()
+        );
+
+        if (pending) {
+          dispatch({ type: "REHYDRATE_LOCK", booking: pending });
+        }
+      } catch {
+        // Ignore hydration failure; normal lock flow still works.
+      }
+    };
+
+    void hydratePendingLock();
+  }, [selectedTurf?.turf_id]);
 
   useEffect(() => {
     if (state.status !== "LOCKED") return;

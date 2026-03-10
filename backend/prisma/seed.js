@@ -26,14 +26,20 @@ async function main() {
       name: 'Demo Owner',
       role: 'OWNER',
       passwordHash: ownerPasswordHash,
-      walletBalance: '5000.00'
+      walletBalance: '5000.00',
+      city: 'Mumbai',
+      skillLevel: 'Advanced',
+      interests: ['Football', 'Cricket']
     },
     create: {
       name: 'Demo Owner',
       email: 'owner@zevo.demo',
       role: 'OWNER',
       passwordHash: ownerPasswordHash,
-      walletBalance: '5000.00'
+      walletBalance: '5000.00',
+      city: 'Mumbai',
+      skillLevel: 'Advanced',
+      interests: ['Football', 'Cricket']
     }
   });
 
@@ -43,14 +49,20 @@ async function main() {
       name: 'Demo Player',
       role: 'PLAYER',
       passwordHash: playerPasswordHash,
-      walletBalance: '2000.00'
+      walletBalance: '2000.00',
+      city: 'Mumbai',
+      skillLevel: 'Intermediate',
+      interests: ['Football', 'Badminton']
     },
     create: {
       name: 'Demo Player',
       email: 'player@zevo.demo',
       role: 'PLAYER',
       passwordHash: playerPasswordHash,
-      walletBalance: '2000.00'
+      walletBalance: '2000.00',
+      city: 'Mumbai',
+      skillLevel: 'Intermediate',
+      interests: ['Football', 'Badminton']
     }
   });
 
@@ -60,14 +72,20 @@ async function main() {
       name: 'Demo Admin',
       role: 'ADMIN',
       passwordHash: adminPasswordHash,
-      walletBalance: '0.00'
+      walletBalance: '0.00',
+      city: 'Mumbai',
+      skillLevel: 'Advanced',
+      interests: ['Operations']
     },
     create: {
       name: 'Demo Admin',
       email: 'admin@zevo.demo',
       role: 'ADMIN',
       passwordHash: adminPasswordHash,
-      walletBalance: '0.00'
+      walletBalance: '0.00',
+      city: 'Mumbai',
+      skillLevel: 'Advanced',
+      interests: ['Operations']
     }
   });
 
@@ -75,6 +93,7 @@ async function main() {
     where: { id: '11111111-1111-1111-1111-111111111111' },
     update: {
       ownerId: owner.id,
+      name: 'Demo Turf',
       pricePerHour: '500.00',
       location: 'Andheri West, Mumbai',
       timeZone: 'Asia/Kolkata',
@@ -83,6 +102,7 @@ async function main() {
     create: {
       id: '11111111-1111-1111-1111-111111111111',
       ownerId: owner.id,
+      name: 'Demo Turf',
       pricePerHour: '500.00',
       location: 'Andheri West, Mumbai',
       timeZone: 'Asia/Kolkata',

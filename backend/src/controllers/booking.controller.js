@@ -80,10 +80,23 @@ async function availableSlots(req, res, next) {
   }
 }
 
+async function activeBookings(req, res, next) {
+  try {
+    const bookings = await bookingCoordinator.getActiveBookings({
+      userId: req.user.id
+    });
+
+    return res.json({ bookings });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   initiateBooking,
   confirmPayment,
   completeBooking,
   cancelBooking,
-  availableSlots
+  availableSlots,
+  activeBookings
 };

@@ -12,7 +12,19 @@ const loginSchema = z.object({
   password: z.string().min(1)
 });
 
+const updateProfileSchema = z.object({
+  city: z.string().trim().max(120).optional().default(''),
+  skillLevel: z.string().trim().min(2).max(40),
+  interests: z.array(z.string().trim().min(1).max(40)).max(20).default([])
+});
+
+const walletTopupSchema = z.object({
+  amount: z.coerce.number().positive().max(100000)
+});
+
 module.exports = {
   signupSchema,
-  loginSchema
+  loginSchema,
+  updateProfileSchema,
+  walletTopupSchema
 };

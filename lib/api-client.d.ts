@@ -4,6 +4,9 @@ export type AuthUser = {
   email: string;
   role: "PLAYER" | "OWNER" | "ADMIN";
   walletBalance: number;
+  city: string | null;
+  skillLevel: string;
+  interests: string[];
 };
 
 export type AuthSession = {
@@ -13,6 +16,7 @@ export type AuthSession = {
 
 export type TurfApi = {
   turf_id: string;
+  name: string;
   owner_id: string;
   owner_name: string | null;
   owner_email: string | null;
@@ -38,6 +42,12 @@ export function signup(details: {
   role?: "PLAYER" | "OWNER";
 }): Promise<AuthSession>;
 export function getCurrentUser(): Promise<AuthUser>;
+export function updateUserProfile(data: {
+  city?: string;
+  skillLevel: string;
+  interests: string[];
+}): Promise<{ message: string; user: AuthUser }>;
+export function addWalletFunds(amount: number): Promise<{ message: string; user: AuthUser }>;
 export function getTurfs(): Promise<TurfApi[]>;
 export function getAvailableSlots(input: {
   turf_id: string;
@@ -53,6 +63,7 @@ export function lockBooking(input: {
 export function confirmBookingPayment(input: {
   booking_id: string;
 }): Promise<{ message: string; booking: BookingApi }>;
+export function getActiveBookings(): Promise<BookingApi[]>;
 
 export type BookingApi = {
   booking_id: string;

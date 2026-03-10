@@ -3,6 +3,7 @@ const turfModel = require('../models/turf.model');
 function serializeTurf(turf) {
   return {
     turf_id: turf.id,
+    name: turf.name,
     owner_id: turf.ownerId,
     owner_name: turf.owner?.name || null,
     owner_email: turf.owner?.email || null,

@@ -1,28 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import { PageShell } from "@/components/zevo/page-shell";
-import { getProfile, getPublicProfiles, type StoredProfile } from "@/lib/zevo-storage";
+import { useUser } from "@/hooks/use-user";
 
 export default function GroupPage() {
-  const [hasProfile, setHasProfile] = useState(false);
-  const [members, setMembers] = useState<StoredProfile[]>([]);
+  const { user, loading, isAuthenticated } = useUser();
 
-  useEffect(() => {
-    setHasProfile(Boolean(getProfile()));
-    setMembers(getPublicProfiles());
-  }, []);
-
-  if (!hasProfile) {
+  if (loading) {
     return (
       <PageShell>
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
           <h1 className="text-3xl font-black">Group</h1>
-          <p className="mt-2 text-sm text-zinc-400">Create your profile to unlock community group access.</p>
+          <p className="mt-2 text-sm text-zinc-400">Checking your session...</p>
+        </section>
+      </PageShell>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <PageShell>
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
+          <h1 className="text-3xl font-black">Group</h1>
+          <p className="mt-2 text-sm text-zinc-400">Login and complete your profile to unlock community group access.</p>
           <Link href="/profile" className="mt-4 inline-block rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900">
-            Create Profile
+            Go To Profile
           </Link>
         </section>
       </PageShell>
@@ -33,12 +37,12 @@ export default function GroupPage() {
     <PageShell>
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
         <h1 className="text-3xl font-black">Community Group</h1>
-        <p className="mt-2 text-sm text-zinc-400">See active members and coordinate upcoming local games.</p>
+        <p className="mt-2 text-sm text-zinc-400">Your profile now syncs from backend and drives group visibility.</p>
       </section>
 
       <section className="mb-4 grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Community Pulse", value: `${members.length} players` },
+          { label: "Community Pulse", value: "Live" },
           { label: "Open Topics", value: "3 active threads" },
           { label: "Next Meetup", value: "Saturday 6:00 AM" }
         ].map((item) => (
@@ -51,21 +55,12 @@ export default function GroupPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
-          <h2 className="font-semibold">Active Members</h2>
-          <div className="mt-3 space-y-2">
-            {members.length === 0 ? (
-              <p className="text-sm text-zinc-400">No members yet.</p>
-            ) : (
-              members.map((member) => (
-                <div key={member.profileId} className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-2 text-sm">
-                  <p className="font-semibold">{member.name}</p>
-                  <p className="text-xs text-zinc-400">
-                    {member.city || "City not set"} • {member.skillLevel}
-                  </p>
-                  <p className="text-xs text-zinc-500">{member.interests.join(", ") || "No interests set"}</p>
-                </div>
-              ))
-            )}
+          <h2 className="font-semibold">Your Profile</h2>
+          <div className="mt-3 space-y-1 text-sm text-zinc-300">
+            <p>{user.name}</p>
+            <p>{user.city || "City not set"}</p>
+            <p>{user.skillLevel}</p>
+            <p>{user.interests.length ? user.interests.join(", ") : "No interests set"}</p>
           </div>
         </article>
 

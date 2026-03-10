@@ -12,6 +12,13 @@ function create(data, tx = prisma) {
   return tx.user.create({ data });
 }
 
+function updateById(userId, data, tx = prisma) {
+  return tx.user.update({
+    where: { id: userId },
+    data
+  });
+}
+
 function decrementWallet(userId, amount, tx = prisma) {
   return tx.user.update({
     where: { id: userId },
@@ -23,9 +30,22 @@ function decrementWallet(userId, amount, tx = prisma) {
   });
 }
 
+function incrementWallet(userId, amount, tx = prisma) {
+  return tx.user.update({
+    where: { id: userId },
+    data: {
+      walletBalance: {
+        increment: amount
+      }
+    }
+  });
+}
+
 module.exports = {
   findById,
   findByEmail,
   create,
-  decrementWallet
+  updateById,
+  decrementWallet,
+  incrementWallet
 };

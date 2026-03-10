@@ -27,8 +27,44 @@ async function me(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const user = await authService.updateProfile({
+      userId: req.user.id,
+      city: req.body.city,
+      skillLevel: req.body.skillLevel,
+      interests: req.body.interests
+    });
+
+    return res.json({
+      message: 'Profile updated successfully.',
+      user
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function topupWallet(req, res, next) {
+  try {
+    const user = await authService.topupWallet({
+      userId: req.user.id,
+      amount: req.body.amount
+    });
+
+    return res.json({
+      message: 'Wallet topped up successfully.',
+      user
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   signup,
   login,
-  me
+  me,
+  updateProfile,
+  topupWallet
 };

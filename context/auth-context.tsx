@@ -17,6 +17,8 @@ type AuthContextValue = {
   token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
+  setCurrentUser: (user: AuthUser) => void;
+  refreshCurrentUser: () => Promise<void>;
   loginUser: (input: { email: string; password: string }) => Promise<void>;
   signupUser: (input: { name: string; email: string; password: string; role?: "PLAYER" | "OWNER" }) => Promise<void>;
   logoutUser: () => void;
@@ -82,17 +84,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   }, []);
 
+  const setCurrentUser = useCallback((user: AuthUser) => {
+    setSession((current) => {
+      if (!current?.token) return current;
+      return {
+        token: current.token,
+        user
+      };
+    });
+  }, []);
+
+  const refreshCurrentUser = useCallback(async () => {
+    const stored = getStoredAuthSession();
+
+    if (!stored?.token) {
+      setSession(null);
+      return;
+    }
+
+    const user = await getCurrentUser();
+    setSession({ token: stored.token, user });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
       token: session?.token ?? null,
       loading,
       isAuthenticated: Boolean(session?.token),
+      setCurrentUser,
+      refreshCurrentUser,
       loginUser,
       signupUser,
       logoutUser
     }),
-    [session, loading, loginUser, signupUser, logoutUser]
+    [session, loading, setCurrentUser, refreshCurrentUser, loginUser, signupUser, logoutUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

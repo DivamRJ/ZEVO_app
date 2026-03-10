@@ -34,8 +34,9 @@ export function AuthPanel({
 
   const getAuthErrorMessage = (caughtError: unknown) => {
     const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
+    const normalized = message.toLowerCase();
 
-    if (message.toLowerCase().includes("failed to fetch")) {
+    if (normalized.includes("failed to fetch") || normalized.includes("network error")) {
       return "Unable to reach backend auth service. Ensure backend is running and NEXT_PUBLIC_BACKEND_URL is correct.";
     }
 

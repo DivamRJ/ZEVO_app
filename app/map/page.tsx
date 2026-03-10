@@ -1,37 +1,58 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { PageShell } from "@/components/zevo/page-shell";
-import {
-  DEFAULT_CENTER,
-  TURFS,
-  getDirectionsUrl,
-  haversineDistanceKm,
-  mapEmbedUrl,
-  type Coords
-} from "@/lib/zevo-data";
+import { getTurfs, type TurfApi } from "@/lib/api-client";
+
+type Coords = {
+  lat: number;
+  lng: number;
+};
+
+function mapEmbedForLocation(location: string) {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(location)}&output=embed`;
+}
+
+function directionsUrl(destination: string, origin?: Coords | null) {
+  if (origin) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${encodeURIComponent(destination)}`;
+  }
+
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
 
 export default function MapPage() {
+  const [turfs, setTurfs] = useState<TurfApi[]>([]);
+  const [selectedTurfId, setSelectedTurfId] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<Coords | null>(null);
-  const [selectedTurfId, setSelectedTurfId] = useState(TURFS[0].id);
-  const [status, setStatus] = useState("Allow location to sort sports arenas near you.");
+  const [status, setStatus] = useState("Loading live turf map data...");
 
-  const selectedTurf = TURFS.find((turf) => turf.id === selectedTurfId) ?? TURFS[0];
-  const mapCenter = selectedTurf ? { lat: selectedTurf.lat, lng: selectedTurf.lng } : userCoords ?? DEFAULT_CENTER;
+  useEffect(() => {
+    const loadTurfs = async () => {
+      try {
+        const payload = await getTurfs();
+        setTurfs(payload);
 
-  const sortedTurfs = useMemo(() => {
-    return TURFS.map((turf) => {
-      const distanceKm = userCoords ? haversineDistanceKm(userCoords, { lat: turf.lat, lng: turf.lng }) : null;
-      return { ...turf, distanceKm };
-    }).sort((a, b) => {
-      if (a.distanceKm == null && b.distanceKm == null) return 0;
-      if (a.distanceKm == null) return 1;
-      if (b.distanceKm == null) return -1;
-      return a.distanceKm - b.distanceKm;
-    });
-  }, [userCoords]);
-  const nearestArena = sortedTurfs.find((turf) => turf.distanceKm != null);
+        if (payload.length) {
+          setSelectedTurfId(payload[0].turf_id);
+          setStatus("Live turf list loaded from backend.");
+        } else {
+          setStatus("No turfs available in database.");
+        }
+      } catch (caughtError) {
+        const message = caughtError instanceof Error ? caughtError.message : "Failed to load turfs.";
+        setStatus(message);
+      }
+    };
+
+    void loadTurfs();
+  }, []);
+
+  const selectedTurf = useMemo(() => {
+    if (!selectedTurfId) return null;
+    return turfs.find((turf) => turf.turf_id === selectedTurfId) || null;
+  }, [turfs, selectedTurfId]);
 
   const requestUserLocation = () => {
     if (!navigator.geolocation) {
@@ -42,7 +63,7 @@ export default function MapPage() {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setUserCoords({ lat: coords.latitude, lng: coords.longitude });
-        setStatus("Location fetched. Sports arenas sorted by nearest distance.");
+        setStatus("Location fetched. You can open directions now.");
       },
       () => setStatus("Location permission denied."),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -53,62 +74,77 @@ export default function MapPage() {
     <PageShell>
       <section className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6">
         <h1 className="text-3xl font-black">Live Sports Arena Map</h1>
-        <p className="mt-2 text-sm text-zinc-400">Compare venues, get directions, and locate the best spot nearby.</p>
+        <p className="mt-2 text-sm text-zinc-400">Map and directions now use live backend turf locations.</p>
         <p className="mt-3 text-xs text-zinc-300">{status}</p>
       </section>
 
       <section className="mb-4 grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={requestUserLocation} className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900">
+        <button
+          type="button"
+          onClick={requestUserLocation}
+          className="rounded-xl bg-neon px-4 py-2 text-sm font-bold text-zinc-900"
+        >
           Use My Location
         </button>
         <button
           type="button"
-          onClick={() => window.open(getDirectionsUrl(mapCenter, userCoords), "_blank", "noopener,noreferrer")}
-          className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500"
+          disabled={!selectedTurf}
+          onClick={() => {
+            if (!selectedTurf) return;
+            window.open(directionsUrl(selectedTurf.location, userCoords), "_blank", "noopener,noreferrer");
+          }}
+          className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-500 disabled:opacity-60"
         >
           Get Directions
         </button>
       </section>
 
       <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4">
-        <h2 className="text-sm font-semibold">Proximity Intel</h2>
+        <h2 className="text-sm font-semibold">Map Focus</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Nearest Arena</p>
-            <p className="mt-1 text-sm text-zinc-100">{nearestArena?.name ?? "Enable location"}</p>
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Selected Arena</p>
+            <p className="mt-1 text-sm text-zinc-100">{selectedTurf?.name || "None"}</p>
           </div>
           <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Range</p>
-            <p className="mt-1 text-sm text-zinc-100">{nearestArena?.distanceKm != null ? `${nearestArena.distanceKm.toFixed(1)} km` : "--"}</p>
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Location</p>
+            <p className="mt-1 text-sm text-zinc-100">{selectedTurf?.location || "--"}</p>
           </div>
           <div className="rounded-xl border border-zinc-700 bg-zinc-800/70 p-3">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Map Focus</p>
-            <p className="mt-1 text-sm text-zinc-100">{selectedTurf.name}</p>
+            <p className="text-[11px] uppercase tracking-wide text-zinc-400">Timezone</p>
+            <p className="mt-1 text-sm text-zinc-100">{selectedTurf?.timezone || "--"}</p>
           </div>
         </div>
       </section>
 
       <section className="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70">
-        <iframe title="ZEVO sports arena map" src={mapEmbedUrl(mapCenter)} className="h-[380px] w-full" loading="lazy" />
+        {selectedTurf ? (
+          <iframe
+            title="ZEVO sports arena map"
+            src={mapEmbedForLocation(selectedTurf.location)}
+            className="h-[380px] w-full"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-[380px] items-center justify-center text-sm text-zinc-400">Select a turf to view map.</div>
+        )}
       </section>
 
       <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-        {sortedTurfs.map((turf) => (
+        {turfs.map((turf) => (
           <button
-            key={turf.id}
+            key={turf.turf_id}
             type="button"
-            onClick={() => setSelectedTurfId(turf.id)}
+            onClick={() => setSelectedTurfId(turf.turf_id)}
             className={`rounded-xl border p-3 text-left text-sm transition ${
-              selectedTurfId === turf.id
+              selectedTurfId === turf.turf_id
                 ? "border-neon bg-neon/10 text-zinc-100"
                 : "border-zinc-800 bg-zinc-900/70 text-zinc-300 hover:border-zinc-500"
             }`}
           >
             <p className="font-semibold">{turf.name}</p>
             <p className="text-xs text-zinc-400">{turf.location}</p>
-            <p className="text-xs text-zinc-500">
-              {turf.distanceKm != null ? `${turf.distanceKm.toFixed(1)} km away` : "Distance unavailable"}
-            </p>
+            <p className="text-xs text-zinc-500">Rs. {turf.price_per_hour}/hour</p>
           </button>
         ))}
       </section>

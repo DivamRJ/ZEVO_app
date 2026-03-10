@@ -234,6 +234,7 @@ async function confirmPayment({ bookingId, actor }) {
     ownerEmail: outcome.owner.email,
     ownerName: outcome.owner.name,
     turfId: outcome.turf.id,
+    turfName: outcome.turf.name,
     turfLocation: outcome.turf.location,
     userId: outcome.user.id,
     userEmail: outcome.user.email,
@@ -372,10 +373,17 @@ async function getAvailableSlots({ turfId, date, slotMinutes = 60 }) {
   };
 }
 
+async function getActiveBookings({ userId }) {
+  const now = new Date();
+  const bookings = await bookingModel.findActiveByUser({ userId, now });
+  return bookings.map(serializeBooking);
+}
+
 module.exports = {
   initiateBooking,
   confirmPayment,
   completeBooking,
   cancelBooking,
-  getAvailableSlots
+  getAvailableSlots,
+  getActiveBookings
 };
