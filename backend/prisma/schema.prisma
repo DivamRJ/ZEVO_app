@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  OWNER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole
+  walletBalance Decimal  @db.Decimal(10, 2)
+  bookings     Booking[]
+  ownedTurfs   Turf[]    @relation("TurfOwner")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Turf {
+  id             String    @id @default(uuid()) @db.Uuid
+  ownerId        String    @db.Uuid
+  hourlyRate     Decimal   @db.Decimal(10, 2)
+  location       String
+  operatingHours Json
+  bookings       Booking[]
+  owner          User      @relation("TurfOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Booking {
+  id         String        @id @default(uuid()) @db.Uuid
+  userId     String        @db.Uuid
+  turfId     String        @db.Uuid
+  startTime  DateTime
+  endTime    DateTime
+  totalPrice Decimal       @db.Decimal(10, 2)
+  status     BookingStatus @default(PENDING)
+  user       User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  turf       Turf          @relation(fields: [turfId], references: [id], onDelete: Restrict)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([turfId, startTime, endTime])
+  @@index([turfId, status])
+}
