@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import "@/app/globals.css";
+import "leaflet/dist/leaflet.css";
 
 export const metadata: Metadata = {
   title: "ZEVO",
