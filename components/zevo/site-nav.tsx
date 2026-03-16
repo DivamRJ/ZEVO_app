@@ -89,14 +89,27 @@ export function SiteNav() {
           })}
         </nav>
 
-        {/* Mobile hamburger */}
-        <button
-          type="button"
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="rounded-lg p-2 text-zinc-400 transition-all duration-300 hover:bg-zinc-800/60 hover:text-zinc-100 md:hidden"
-        >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* User avatar */}
+          {user && (
+            <Link
+              href="/profile"
+              className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-neon/50 bg-neon/10 text-[11px] font-black text-neon transition-all duration-300 hover:border-neon hover:shadow-[0_0_8px_rgba(204,255,0,0.3)]"
+              title={user.name || "Profile"}
+            >
+              {user.name?.charAt(0)?.toUpperCase() || "Z"}
+            </Link>
+          )}
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="rounded-lg p-2 text-zinc-400 transition-all duration-300 hover:bg-zinc-800/60 hover:text-zinc-100 md:hidden"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}
