@@ -40,12 +40,14 @@ export default function OwnerDashboardPage() {
 
   // Load turfs
   useEffect(() => {
+    if (!user?.id) return;
     const loadTurfs = async () => {
       try {
         const supabase = createClient();
         const { data, error } = await supabase
           .from("turfs")
           .select("id, owner_id, name, location, price_per_hour, time_zone, latitude, longitude, is_active")
+          .eq("owner_id", user.id)
           .order("created_at", { ascending: false });
         if (error) throw error;
         setTurfs(
@@ -67,9 +69,9 @@ export default function OwnerDashboardPage() {
       }
     };
     void loadTurfs();
-  }, []);
+  }, [user?.id]);
 
-  const ownedTurfs = useMemo(() => turfs.filter((turf) => turf.owner_id === user?.id), [turfs, user?.id]);
+  const ownedTurfs = turfs;
   const activeTurfs = useMemo(() => ownedTurfs.filter((t) => t.is_active), [ownedTurfs]);
   const totalRevenuePotential = useMemo(() => ownedTurfs.reduce((acc, t) => acc + t.price_per_hour, 0), [ownedTurfs]);
 

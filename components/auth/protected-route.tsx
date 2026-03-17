@@ -14,7 +14,7 @@ type ProtectedRouteProps = {
 export function ProtectedRoute({
   children,
   allowedRoles,
-  redirectTo = "/profile"
+  redirectTo = "/"
 }: ProtectedRouteProps) {
   const router = useRouter();
   const { isAuthenticated, loading, user } = useAuth();

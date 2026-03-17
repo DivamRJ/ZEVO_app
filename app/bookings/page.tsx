@@ -263,7 +263,29 @@ export default function BookingsPage() {
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-zinc-500">ID: {r.id.slice(0, 12)}…</p>
-                <p className="text-sm font-bold text-zinc-200">₹{r.total_price}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-zinc-200">₹{r.total_price}</p>
+                  {(r.status === "PENDING" || r.status === "CONFIRMED") && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const supabase = createClient();
+                        const { error } = await supabase
+                          .from("bookings")
+                          .update({ status: "CANCELLED" })
+                          .eq("id", r.id);
+                        if (!error) {
+                          setReservations((prev) =>
+                            prev.map((b) => b.id === r.id ? { ...b, status: "CANCELLED" } : b)
+                          );
+                        }
+                      }}
+                      className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-400 transition hover:bg-red-500/20"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))}

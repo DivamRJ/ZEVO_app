@@ -47,8 +47,19 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized. Please login first." }, { status: 401 });
     }
 
-    // Upcast user role to OWNER so they can insert turfs
-    await supabase.from("profiles").update({ role: "OWNER" }).eq("id", user.id);
+    // Verify user has OWNER or ADMIN role — do NOT auto-escalate
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || !["OWNER", "ADMIN"].includes(profile.role)) {
+      return NextResponse.json(
+        { error: "Only OWNER or ADMIN accounts can seed arenas. Update your role via the Supabase dashboard." },
+        { status: 403 }
+      );
+    }
 
     // Get existing turf names to avoid duplicates
     const { data: existing } = await supabase.from("turfs").select("name");

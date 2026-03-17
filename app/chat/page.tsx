@@ -85,14 +85,35 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !selectedRoomId) { setMessages([]); return; }
+    const supabase = createClient();
+
+    // Initial load
     const loadMessages = async () => {
-      const supabase = createClient();
       const { data, error } = await supabase.from("arena_chat_messages").select("id, room_id, user_id, sender_name, body, created_at").eq("room_id", selectedRoomId).order("created_at", { ascending: true });
       if (!error && data) {
         setMessages(data.map((row) => ({ id: row.id as string, room_id: row.room_id as string, user_id: row.user_id as string, sender_name: row.sender_name as string, body: row.body as string, created_at: row.created_at as string })));
       }
     };
     void loadMessages();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel(`room:${selectedRoomId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "arena_chat_messages", filter: `room_id=eq.${selectedRoomId}` },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          setMessages((prev) => {
+            // Avoid duplicates (optimistic insert already added it)
+            if (prev.some((m) => m.id === (row.id as string))) return prev;
+            return [...prev, { id: row.id as string, room_id: row.room_id as string, user_id: row.user_id as string, sender_name: row.sender_name as string, body: row.body as string, created_at: row.created_at as string }];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
   }, [isAuthenticated, selectedRoomId]);
 
   const createArenaChatRoom = () => {

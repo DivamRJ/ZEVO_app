@@ -12,16 +12,42 @@ type AvailabilityCalendarProps = {
   selectedSlot: { start_time: string; end_time: string } | null;
 };
 
+type DayHours = { open: string; close: string };
+type OperatingHours = Record<string, DayHours>;
+
+const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
 function getMonthData(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startDow = firstDay.getDay();
-  const totalDays = lastDay.getDate();
-  return { startDow, totalDays, firstDay };
+  return { startDow: firstDay.getDay(), totalDays: lastDay.getDate() };
 }
 
 function toDateKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Generate 1-hour slots for a given date based on operating hours */
+function generateSlots(dateKey: string, hours: DayHours): { start_time: string; end_time: string }[] {
+  const [openH, openM] = hours.open.split(":").map(Number);
+  const [closeH, closeM] = hours.close.split(":").map(Number);
+  const slots: { start_time: string; end_time: string }[] = [];
+  const now = Date.now();
+
+  let cursor = new Date(`${dateKey}T${hours.open}:00`);
+  const closeTime = new Date(`${dateKey}T${String(closeH).padStart(2, "0")}:${String(closeM).padStart(2, "0")}:00`);
+
+  // Suppress unused variable warnings
+  void openH; void openM;
+
+  while (cursor.getTime() + 3600000 <= closeTime.getTime()) {
+    const end = new Date(cursor.getTime() + 3600000);
+    if (cursor.getTime() > now) {
+      slots.push({ start_time: cursor.toISOString(), end_time: end.toISOString() });
+    }
+    cursor = end;
+  }
+  return slots;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -35,114 +61,110 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string>(toDateKey(today));
-  const [slots, setSlots] = useState<{ start_time: string; end_time: string }[]>([]);
-  const [slotDays, setSlotDays] = useState<Set<string>>(new Set());
+  const [bookedSlots, setBookedSlots] = useState<{ start_time: string; end_time: string }[]>([]);
+  const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { startDow, totalDays } = getMonthData(viewYear, viewMonth);
 
-  // Fetch all bookings for the month to find which days have slots
+  // Fetch turf operating hours once
   useEffect(() => {
-    if (!turf_id) {
-      setSlotDays(new Set());
-      return;
-    }
-
-    const loadMonthSlots = async () => {
-      try {
-        const supabase = createClient();
-        const monthStart = new Date(viewYear, viewMonth, 1);
-        const monthEnd = new Date(viewYear, viewMonth + 1, 1);
-
-        const { data, error } = await supabase
-          .from("bookings")
-          .select("start_time")
-          .eq("turf_id", turf_id)
-          .gte("start_time", monthStart.toISOString())
-          .lt("start_time", monthEnd.toISOString());
-
-        if (error) return;
-
-        const days = new Set<string>();
-        data?.forEach((row) => {
-          const d = new Date(row.start_time as string);
-          days.add(toDateKey(d));
-        });
-        setSlotDays(days);
-      } catch {
-        // Silently fail — dots just won't show
+    if (!turf_id) { setOperatingHours(null); return; }
+    const load = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("turfs")
+        .select("operating_hours")
+        .eq("id", turf_id)
+        .single();
+      if (!error && data?.operating_hours) {
+        setOperatingHours(data.operating_hours as OperatingHours);
       }
     };
+    void load();
+  }, [turf_id]);
 
-    void loadMonthSlots();
-  }, [turf_id, viewYear, viewMonth]);
-
-  // Fetch slots for selected date
+  // Fetch booked/pending slots for selected date
   useEffect(() => {
-    if (!turf_id || !selectedDate) {
-      setSlots([]);
-      return;
-    }
-
-    const loadSlots = async () => {
+    if (!turf_id || !selectedDate) { setBookedSlots([]); return; }
+    const load = async () => {
       try {
         setLoading(true);
         setError(null);
-
         const supabase = createClient();
-        const dayStart = new Date(selectedDate);
-        const dayEnd = new Date(selectedDate);
-        dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
+        const dayStart = new Date(`${selectedDate}T00:00:00`);
+        const dayEnd = new Date(`${selectedDate}T23:59:59`);
 
         const { data, error } = await supabase
           .from("bookings")
           .select("start_time, end_time, status, lock_expires_at")
           .eq("turf_id", turf_id)
           .gte("start_time", dayStart.toISOString())
-          .lt("start_time", dayEnd.toISOString());
+          .lte("start_time", dayEnd.toISOString())
+          .in("status", ["PENDING", "CONFIRMED"]);
 
         if (error) throw error;
 
-        const existing = data?.map((row) => ({
-          start_time: row.start_time as string,
-          end_time: row.end_time as string,
-        })) ?? [];
-
+        // A PENDING slot is only truly blocked if its lock hasn't expired
         const now = Date.now();
-        setSlots(existing.filter((s) => new Date(s.start_time).getTime() > now));
+        setBookedSlots(
+          (data ?? [])
+            .filter((r) => {
+              if (r.status === "CONFIRMED") return true;
+              // PENDING: only block if lock is still active
+              return r.lock_expires_at && new Date(r.lock_expires_at as string).getTime() > now;
+            })
+            .map((r) => ({ start_time: r.start_time as string, end_time: r.end_time as string }))
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to fetch slots.");
-        setSlots([]);
       } finally {
         setLoading(false);
       }
     };
-
-    void loadSlots();
+    void load();
   }, [turf_id, selectedDate]);
 
-  const selectedSlotKey = useMemo(() => {
-    if (!selectedSlot) return "";
-    return `${selectedSlot.start_time}_${selectedSlot.end_time}`;
-  }, [selectedSlot]);
+  // Days that have at least one free slot (for calendar dots)
+  const freeDays = useMemo(() => {
+    if (!operatingHours) return new Set<string>();
+    const days = new Set<string>();
+    for (let d = 1; d <= totalDays; d++) {
+      const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dow = new Date(dateKey).getDay();
+      const hours = operatingHours[DAY_KEYS[dow]];
+      if (hours) days.add(dateKey);
+    }
+    return days;
+  }, [operatingHours, viewYear, viewMonth, totalDays]);
+
+  // Available slots = generated slots minus booked ones
+  const availableSlots = useMemo(() => {
+    if (!operatingHours || !selectedDate) return [];
+    const dow = new Date(selectedDate).getDay();
+    const hours = operatingHours[DAY_KEYS[dow]];
+    if (!hours) return [];
+    const all = generateSlots(selectedDate, hours);
+    return all.filter(
+      (slot) =>
+        !bookedSlots.some(
+          (b) =>
+            new Date(b.start_time).getTime() < new Date(slot.end_time).getTime() &&
+            new Date(b.end_time).getTime() > new Date(slot.start_time).getTime()
+        )
+    );
+  }, [operatingHours, selectedDate, bookedSlots]);
+
+  const selectedSlotKey = selectedSlot ? `${selectedSlot.start_time}_${selectedSlot.end_time}` : "";
 
   const goPrevMonth = () => {
-    if (viewMonth === 0) {
-      setViewMonth(11);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1); }
+    else setViewMonth((m) => m - 1);
   };
-
   const goNextMonth = () => {
-    if (viewMonth === 11) {
-      setViewMonth(0);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
+    else setViewMonth((m) => m + 1);
   };
 
   const todayKey = toDateKey(today);
@@ -150,49 +172,33 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
   return (
     <section className="glass-panel p-5">
       <h2 className="text-lg font-semibold">Availability Calendar</h2>
-      <p className="mt-1 text-xs text-zinc-400">Select a date, then pick a slot</p>
+      <p className="mt-1 text-xs text-zinc-400">Select a date, then pick a free slot</p>
 
       {/* Month navigation */}
       <div className="mt-4 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={goPrevMonth}
-          className="rounded-lg border border-zinc-700 bg-zinc-800/70 p-1.5 text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
-        >
+        <button type="button" onClick={goPrevMonth} className="rounded-lg border border-zinc-700 bg-zinc-800/70 p-1.5 text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100">
           <ChevronLeft size={16} />
         </button>
-        <p className="text-sm font-semibold text-zinc-200">
-          {MONTH_NAMES[viewMonth]} {viewYear}
-        </p>
-        <button
-          type="button"
-          onClick={goNextMonth}
-          className="rounded-lg border border-zinc-700 bg-zinc-800/70 p-1.5 text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100"
-        >
+        <p className="text-sm font-semibold text-zinc-200">{MONTH_NAMES[viewMonth]} {viewYear}</p>
+        <button type="button" onClick={goNextMonth} className="rounded-lg border border-zinc-700 bg-zinc-800/70 p-1.5 text-zinc-300 transition hover:border-zinc-500 hover:text-zinc-100">
           <ChevronRight size={16} />
         </button>
       </div>
 
       {/* Weekday headers */}
       <div className="mt-3 grid grid-cols-7 gap-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="py-1">{d}</div>
-        ))}
+        {WEEKDAYS.map((d) => <div key={d} className="py-1">{d}</div>)}
       </div>
 
       {/* Day cells */}
       <div className="mt-1 grid grid-cols-7 gap-0.5">
-        {/* Empty cells for offset */}
-        {Array.from({ length: startDow }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-9" />
-        ))}
-
+        {Array.from({ length: startDow }).map((_, i) => <div key={`empty-${i}`} className="h-9" />)}
         {Array.from({ length: totalDays }).map((_, i) => {
           const day = i + 1;
           const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
           const isToday = dateKey === todayKey;
           const isSelected = dateKey === selectedDate;
-          const hasSlots = slotDays.has(dateKey);
+          const hasFreeSlots = freeDays.has(dateKey);
 
           return (
             <button
@@ -208,15 +214,15 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
               }`}
             >
               {day}
-              {hasSlots && !isSelected && (
-                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-neon" />
+              {hasFreeSlots && !isSelected && (
+                <span className="absolute bottom-1 h-1 w-1 rounded-full bg-emerald-400" />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Expanded slots for selected date */}
+      {/* Slots for selected date */}
       <AnimatePresence mode="wait">
         {selectedDate && (
           <motion.div
@@ -228,7 +234,7 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
             className="mt-4 overflow-hidden"
           >
             <p className="mb-2 text-xs font-medium text-zinc-400">
-              Slots for {new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+              Free slots for {new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
             </p>
 
             {!turf_id && <p className="text-sm text-zinc-500">Select a turf first.</p>}
@@ -236,10 +242,9 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
             {error && <p className="text-sm text-red-400">{error}</p>}
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {slots.map((slot) => {
+              {availableSlots.map((slot) => {
                 const key = `${slot.start_time}_${slot.end_time}`;
                 const active = selectedSlotKey === key;
-
                 return (
                   <motion.button
                     key={key}
@@ -264,11 +269,12 @@ export function AvailabilityCalendar({ turf_id, onSelectSlot, selectedSlot }: Av
                     </p>
                   </motion.button>
                 );
-              })}
+              }
+            )}
             </div>
 
-            {!loading && !error && turf_id && slots.length === 0 && (
-              <p className="text-sm text-zinc-500">No available slots for this date.</p>
+            {!loading && !error && turf_id && availableSlots.length === 0 && (
+              <p className="text-sm text-zinc-500">No free slots for this date.</p>
             )}
           </motion.div>
         )}

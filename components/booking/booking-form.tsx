@@ -169,9 +169,12 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     dispatch({ type: "LOCK_REQUEST" });
     try {
       const supabase = createClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) { dispatch({ type: "LOCK_FAILURE", message: "You must be logged in to book." }); return; }
       const { data, error } = await supabase
         .from("bookings")
-        .insert({ turf_id: turf.id, start_time: slot.start_time, end_time: slot.end_time, status: "PENDING" })
+        .insert({ user_id: userId, turf_id: turf.id, start_time: slot.start_time, end_time: slot.end_time, status: "PENDING" })
         .select("id, user_id, turf_id, start_time, end_time, total_price, status, lock_expires_at, confirmed_at, completed_at, cancelled_at")
         .single();
       if (error) throw error;
@@ -190,11 +193,10 @@ export function BookingForm({ selectedTurf, selectedSlot, onBookingConfirmed }: 
     }
   }, []);
 
-  // Auto-lock on slot selection
+  // Reset flow when slot changes so user can re-lock
   useEffect(() => {
-    if (!selectedTurf || !selectedSlot) return;
-    void requestLock(selectedTurf, selectedSlot);
-  }, [selectedTurf?.id, selectedSlot?.start_time, selectedSlot?.end_time, requestLock]);
+    dispatch({ type: "RESET" });
+  }, [selectedTurf?.id, selectedSlot?.start_time, selectedSlot?.end_time]);
 
   const handleLockSlot = async () => {
     if (!selectedTurf || !selectedSlot) {

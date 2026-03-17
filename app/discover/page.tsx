@@ -129,19 +129,37 @@ export default function DiscoverPage() {
     [turfs]
   );
 
-  // Fuzzy search filter
+  // Fuzzy search filter — checks name, location, and amenities
   const filteredTurfs = useMemo(() => {
     let list = turfs;
-    if (urlSport) list = list.filter((t) => t.name.toLowerCase().includes(urlSport.toLowerCase()));
+    if (urlSport) {
+      const sport = urlSport.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(sport) ||
+          t.amenities.some((a) => a.toLowerCase().includes(sport))
+      );
+    }
     if (!searchQuery.trim()) return list;
     const q = searchQuery.toLowerCase();
-    return list.filter((t) => t.name.toLowerCase().includes(q) || t.location.toLowerCase().includes(q));
+    return list.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.location.toLowerCase().includes(q) ||
+        t.amenities.some((a) => a.toLowerCase().includes(q))
+    );
   }, [turfs, searchQuery, urlSport]);
 
   // Personalized
   const personalizedTurfs = useMemo(() => {
     if (!isAuthenticated || !user?.interests?.length) return [];
-    return turfs.filter((t) => user.interests.some((interest) => t.name.toLowerCase().includes(interest.toLowerCase())));
+    return turfs.filter((t) =>
+      user.interests.some(
+        (interest) =>
+          t.name.toLowerCase().includes(interest.toLowerCase()) ||
+          t.amenities.some((a) => a.toLowerCase().includes(interest.toLowerCase()))
+      )
+    );
   }, [turfs, user, isAuthenticated]);
 
   // Sport collections with counts

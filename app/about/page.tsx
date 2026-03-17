@@ -6,7 +6,7 @@ import { HelpCircle, Mail, Phone } from "lucide-react";
 
 import { PageShell } from "@/components/zevo/page-shell";
 import { SectionHeader } from "@/components/ui/section-header";
-import { appendHelpRequest } from "@/lib/zevo-storage";
+import { createClient } from "@/utils/supabase/client";
 
 const faqs = [
   { q: "How fast are bookings confirmed?", a: "Most confirmations are shared within a few minutes via real-time slot locking." },
@@ -19,15 +19,31 @@ export default function AboutPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("Need help? Send us your query.");
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     if (!name.trim() || !email.trim() || !message.trim()) {
       setStatus("Please fill all fields.");
       return;
     }
-    appendHelpRequest({ name: name.trim(), email: email.trim(), message: message.trim(), submittedAt: new Date().toISOString() });
-    setMessage("");
-    setStatus("Request submitted. ZEVO support will reach you soon.");
+    try {
+      setSubmitting(true);
+      const supabase = createClient();
+      const { error } = await supabase.from("help_requests").insert({
+        name: name.trim(),
+        email: email.trim(),
+        message: message.trim(),
+      });
+      if (error) throw error;
+      setName("");
+      setEmail("");
+      setMessage("");
+      setStatus("Request submitted. ZEVO support will reach you soon.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -107,7 +123,9 @@ export default function AboutPage() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className="input-field" />
             <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your email" className="input-field" />
             <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="How can we help you?" className="input-field" />
-            <button type="button" onClick={submit} className="btn-primary w-full">Submit</button>
+            <button type="button" onClick={submit} disabled={submitting} className="btn-primary w-full">
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
           </div>
         </motion.article>
       </div>
