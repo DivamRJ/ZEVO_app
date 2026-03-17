@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-import { getTheme, setTheme } from "@/lib/zevo-storage";
+function getTheme(): "dark" | "light" {
+  if (typeof window === "undefined") return "dark";
+  return localStorage.getItem("zevo_theme") === "light" ? "light" : "dark";
+}
+
+function setTheme(theme: "dark" | "light") {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("zevo_theme", theme);
+}
 
 export function ThemeToggle() {
   const [theme, setThemeState] = useState<"dark" | "light">("dark");
